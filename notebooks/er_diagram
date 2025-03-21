@@ -1,0 +1,13 @@
+// ER Diagram for CAFB Data
+digraph {
+	SP_HOO [label=CAFB_Shopping_Partners_HOO]
+	SP_Cultures [label=CAFB_Shopping_Partners_Cultures_Served]
+	SP_Wrap [label=CAFB_Shopping_Partners_Wraparound_Services]
+	M_HOO [label=CAFB_Markets_HOO]
+	M_Cultures [label=CAFB_Markets_Cultures_Served]
+	M_Wrap [label=CAFB_Markets_Wraparound_Services]
+	SP_HOO -> SP_Cultures [label="Partner ID"]
+	SP_HOO -> SP_Wrap [label="Partner ID"]
+	M_HOO -> M_Cultures [label="Partner ID"]
+	M_HOO -> M_Wrap [label="Partner ID"]
+}
