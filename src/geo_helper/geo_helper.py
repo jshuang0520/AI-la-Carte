@@ -5,11 +5,13 @@ from geopy.distance import geodesic
 from shapely.geometry import Point, Polygon
 import numpy as np
 from src.logger import Logger
+from src.db_helper import DBHelper
 
 class GeoHelper:
     def __init__(self):
         self.logger = Logger()
         self.geocoder = Nominatim(user_agent="ai_la_carte")
+        self.db_helper = DBHelper()
         
     def parse_address(self, address: str) -> Tuple[float, float]:
         """
@@ -83,4 +85,62 @@ class GeoHelper:
             return sorted(filtered_stores, key=lambda x: x['distance'])
         except Exception as e:
             self.logger.error(f"Error filtering stores by distance: {str(e)}")
+            raise
+            
+    def update_store_location(self, store_id: str, address: str) -> bool:
+        """
+        Update store location in the database
+        """
+        try:
+            # Parse address to coordinates
+            coordinates = self.parse_address(address)
+            
+            # Store in database
+            return self.db_helper.update_store_location(
+                store_id,
+                coordinates[0],  # latitude
+                coordinates[1]   # longitude
+            )
+        except Exception as e:
+            self.logger.error(f"Error updating store location: {str(e)}")
+            raise
+            
+    def batch_update_store_locations(
+        self,
+        store_locations: List[Dict[str, str]]
+    ) -> bool:
+        """
+        Batch update store locations
+        """
+        try:
+            for store_data in store_locations:
+                store_id = store_data.get('id')
+                address = store_data.get('address')
+                if store_id and address:
+                    self.update_store_location(store_id, address)
+            return True
+        except Exception as e:
+            self.logger.error(f"Error batch updating store locations: {str(e)}")
+            raise
+            
+    def calculate_distance_matrix(
+        self,
+        locations: List[Tuple[float, float]]
+    ) -> np.ndarray:
+        """
+        Calculate distance matrix between multiple locations
+        """
+        try:
+            n = len(locations)
+            matrix = np.zeros((n, n))
+            
+            for i in range(n):
+                for j in range(i + 1, n):
+                    distance = geodesic(locations[i], locations[j]).kilometers
+                    matrix[i, j] = distance
+                    matrix[j, i] = distance
+                    
+            return matrix
+        except Exception as e:
+            self.logger.error(f"Error calculating distance matrix: {str(e)}")
             raise 

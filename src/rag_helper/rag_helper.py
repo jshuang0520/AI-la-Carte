@@ -3,6 +3,7 @@ from src.logger import Logger
 from src.embedding_helper import EmbeddingHelper
 from src.db_helper import DBHelper
 from src.translate_helper import TranslateHelper
+import numpy as np
 
 class RAGHelper:
     def __init__(self):
@@ -80,4 +81,35 @@ class RAGHelper:
             return store_details
         except Exception as e:
             self.logger.error(f"Error performing RAG: {str(e)}")
+            raise
+            
+    def update_store_embeddings(self, store_id: str, store_data: Dict[str, Any]) -> bool:
+        """
+        Update store embeddings in the database
+        """
+        try:
+            # Create embedding for store data
+            store_embedding = self.embedding_helper.create_embedding(str(store_data))
+            
+            # Store in database
+            return self.db_helper.update_store_embedding(store_id, store_embedding)
+        except Exception as e:
+            self.logger.error(f"Error updating store embeddings: {str(e)}")
+            raise
+            
+    def batch_update_store_embeddings(
+        self,
+        store_data_list: List[Dict[str, Any]]
+    ) -> bool:
+        """
+        Batch update store embeddings
+        """
+        try:
+            for store_data in store_data_list:
+                store_id = store_data.get('id')
+                if store_id:
+                    self.update_store_embeddings(store_id, store_data)
+            return True
+        except Exception as e:
+            self.logger.error(f"Error batch updating store embeddings: {str(e)}")
             raise 

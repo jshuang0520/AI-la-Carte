@@ -8,9 +8,9 @@ from src.utils import Utils
 from src.config import Config
 from src.logger import Logger
 from src.constants import Constants
-from src.user_preferences import UserPreferences
-from src.rag_helper import RAGHelper
-from src.geo_helper import GeoHelper
+from src.user_preferences.user_preferences import UserPreferences
+from src.rag_helper.rag_helper import RAGHelper
+from src.geo_helper.geo_helper import GeoHelper
 from typing import Dict, Any, List
 
 
@@ -65,8 +65,8 @@ class WorkflowInterface:
             # Translate to Spanish
             es_data = self.translate_helper.translate_to_spanish(input_data)
             return {
-                'en': en_data,
-                'es': es_data
+                self.constants.LANG_EN: en_data,
+                self.constants.LANG_ES: es_data
             }
         except Exception as e:
             self.logger.error(f"Translation error: {str(e)}")
@@ -78,9 +78,9 @@ class WorkflowInterface:
         """
         try:
             # Store English version
-            self.db_helper.store_data(translated_data['en'], 'en')
+            self.db_helper.store_data(translated_data[self.constants.LANG_EN], self.constants.LANG_EN)
             # Store Spanish version
-            self.db_helper.store_data(translated_data['es'], 'es')
+            self.db_helper.store_data(translated_data[self.constants.LANG_ES], self.constants.LANG_ES)
             return True
         except Exception as e:
             self.logger.error(f"Database storage error: {str(e)}")
