@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from src.embedding_helper import EmbeddingHelper
 from src.db_helper import DBHelper
 from src.translate_helper import TranslateHelper

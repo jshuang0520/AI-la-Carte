@@ -1,5 +1,6 @@
 from typing import Any, Dict, List
 import sqlite3
+import numpy as np
 from src.logger import Logger
 from src.config import Config
 
@@ -61,4 +62,38 @@ class DBHelper:
             return results
         except Exception as e:
             self.logger.error(f"Error retrieving data: {str(e)}")
+            raise
+
+    def get_store_embeddings(self) -> List[Dict[str, Any]]:
+        """
+        Retrieve store embeddings from the database
+        Returns a list of dictionaries containing store details and their embeddings
+        """
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT store_id, name, address, embedding
+                FROM store_embeddings
+            """)
+            
+            results = cursor.fetchall()
+            store_embeddings = []
+            
+            for row in results:
+                store_id, name, address, embedding = row
+                # Convert string representation of embedding back to numpy array
+                embedding_array = np.frombuffer(embedding, dtype=np.float32)
+                store_embeddings.append({
+                    'store_id': store_id,
+                    'name': name,
+                    'address': address,
+                    'embedding': embedding_array
+                })
+            
+            conn.close()
+            return store_embeddings
+        except Exception as e:
+            self.logger.error(f"Error retrieving store embeddings: {str(e)}")
             raise 

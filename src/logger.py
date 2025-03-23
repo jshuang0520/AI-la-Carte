@@ -1,7 +1,6 @@
 import logging
 import os
 from typing import Optional
-from src.config import Config
 
 class Logger:
     _instance: Optional['Logger'] = None
@@ -16,9 +15,8 @@ class Logger:
         """
         Initialize logger
         """
-        self.config = Config()
         self.logger = logging.getLogger('AI_la_Carte')
-        self.logger.setLevel(self.config.get_log_level())
+        self.logger.setLevel('INFO')
         
         # Create logs directory if it doesn't exist
         log_dir = 'logs'
@@ -27,11 +25,11 @@ class Logger:
             
         # File handler
         file_handler = logging.FileHandler(os.path.join(log_dir, 'app.log'))
-        file_handler.setLevel(self.config.get_log_level())
+        file_handler.setLevel('INFO')
         
         # Console handler
         console_handler = logging.StreamHandler()
-        console_handler.setLevel(self.config.get_log_level())
+        console_handler.setLevel('INFO')
         
         # Formatter
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
