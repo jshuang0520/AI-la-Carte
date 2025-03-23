@@ -27,6 +27,22 @@ class GeoHelper:
         layer = FeatureLayer(layer_url)
         
         # Create search geometry with buffer
+        """
+        What does this mean? WKID = Well-Known ID, 4326 is for WGS 84 
+        
+        What is WGS 84? 
+        WGS 84 is a standard for use in cartography, geodesy, and navigation including GPS.
+        It defines a reference frame for the Earth, including its shape, size, and gravitational field.
+        It is the coordinate system used by GPS.
+        
+        https://en.wikipedia.org/wiki/World_Geodetic_System
+        https://developers.arcgis.com/documentation/common-data-types/geometry-objects.htm
+        https://developers.arcgis.com/documentation/common-data-types/geometry-objects.htm#point
+        https://developers.arcgis.com/documentation/common-data-types/geometry-objects.htm#geometry-objects
+        https://developers.arcgis.com/documentation/common-data-types/geometry-objects.htm#geometry-objects
+        https://developers.arcgis.com/documentation/common-data-types/geometry-objects.htm#point
+        https://developers.arcgis.com/documentation/common-data-types/geometry-objects.htm#geometry-objects  
+        """
         search_geometry = Geometry({
             "x": lon,
             "y": lat,
