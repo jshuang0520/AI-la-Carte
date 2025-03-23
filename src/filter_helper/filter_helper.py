@@ -11,74 +11,62 @@ class FilterHelper:
         self.rag_helper = RAGHelper()
         self.translate_helper = TranslateHelper()
         
-    def filter_stores(
+    def get_recommendations(
         self,
         user_preferences: Dict[str, Any],
         top_n: int = 5
     ) -> List[Dict[str, Any]]:
         """
-        Main filtering function that coordinates between RAG and distance filtering
+        Main recommendation function that coordinates RAG, geo filtering, and translations
         """
         try:
             # Step 1: Get RAG-based recommendations
-            rag_stores = self.rag_helper.perform_rag(
-                self.rag_helper.create_prompt_template(user_preferences),
+            rag_stores = self.rag_helper.get_relevant_stores(
+                user_preferences,
                 top_n
             )
             
             # Step 2: Filter by distance
-            user_location = self.geo_helper.parse_address(user_preferences['location'])
-            max_distance = float(user_preferences['distance'])
-            
-            filtered_stores = self.geo_helper.filter_stores_by_distance(
+            filtered_stores = self.geo_helper.filter_by_distance(
                 rag_stores,
-                user_location,
-                max_distance
+                user_preferences['location'],
+                float(user_preferences['distance'])
             )
             
-            # Step 3: Translate store details to user's preferred language
-            translated_stores = []
-            for store in filtered_stores:
-                translated_store = self.translate_helper.translate_to_language(
-                    store,
-                    user_preferences['language']
-                )
-                translated_stores.append(translated_store)
+            # Step 3: Translate results to user's preferred language
+            translated_stores = self.translate_helper.translate_stores(
+                filtered_stores,
+                user_preferences['language']
+            )
             
-            return translated_stores
+            # Step 4: Sort by relevance and distance
+            return self._sort_results(translated_stores)
+            
         except Exception as e:
-            self.logger.error(f"Error filtering stores: {str(e)}")
+            self.logger.error(f"Error getting recommendations: {str(e)}")
             raise
             
-    def combine_results(
+    def _sort_results(
         self,
-        rag_results: List[Dict[str, Any]],
-        distance_results: List[Dict[str, Any]]
+        stores: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
         """
-        Combine results from RAG and distance filtering
+        Sort results by a combination of relevance score and distance
         """
         try:
-            # Create sets of store IDs for efficient lookup
-            rag_store_ids = {store['id'] for store in rag_results}
-            distance_store_ids = {store['id'] for store in distance_results}
+            # Sort first by relevance score (if available)
+            stores_with_score = sorted(
+                stores,
+                key=lambda x: x.get('relevance_score', 0),
+                reverse=True
+            )
             
-            # Find stores that appear in both results
-            common_store_ids = rag_store_ids.intersection(distance_store_ids)
+            # Then sort by distance within same relevance groups
+            return sorted(
+                stores_with_score,
+                key=lambda x: x.get('distance', float('inf'))
+            )
             
-            # Create dictionaries for quick lookup
-            rag_dict = {store['id']: store for store in rag_results}
-            distance_dict = {store['id']: store for store in distance_results}
-            
-            # Combine results
-            combined_results = []
-            for store_id in common_store_ids:
-                store = rag_dict[store_id].copy()
-                store['distance'] = distance_dict[store_id]['distance']
-                combined_results.append(store)
-            
-            # Sort by distance
-            return sorted(combined_results, key=lambda x: x['distance'])
         except Exception as e:
-            self.logger.error(f"Error combining results: {str(e)}")
+            self.logger.error(f"Error sorting results: {str(e)}")
             raise 
