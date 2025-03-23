@@ -37,8 +37,20 @@ venv.bak/
 .DS_Store
 
 # Jupyter Notebook
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+.ipynb_checkpoints/
 .ipynb_checkpoints
+.ipynb
 *.ipynb
+.ipynb_checkpoints/
+.ipynb_checkpoints
+.ipynb_checkpoints/
+.ipynb_checkpoints/*
+.ipynb_checkpoints/*.ipynb
+.ipynb_checkpoints/*.ipynb
+.ipynb_checkpoints/*.ipynb_checkpoints
+.ipynb_checkpoints/*.ipynb_checkpoints/*
 
 # Logs
 logs/
