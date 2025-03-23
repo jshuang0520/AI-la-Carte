@@ -1,5 +1,6 @@
 from typing import Any, Dict, List
-import sqlite3
+import os
+import pandas as pd
 import numpy as np
 from src.logger import Logger
 from src.config import Config
@@ -8,92 +9,163 @@ class DBHelper:
     def __init__(self):
         self.logger = Logger()
         self.config = Config()
-        self.db_path = self.config.get_db_path()
+        self.data_dir = "data"
+        self.documents = {}
+        self.embeddings = {}
+        self._load_data()
         
-    def connect(self):
+    def _load_data(self):
         """
-        Create database connection
+        Load all Excel files from data directory and process them into documents
         """
         try:
-            return sqlite3.connect(self.db_path)
+            # Define the Excel file paths
+            files = {
+                "CAFB_Markets_Cultures_Served": "CAFB_Markets_Cultures_Served.xlsx",
+                "CAFB_Markets_HOO": "CAFB_Markets_HOO.xlsx",
+                "CAFB_Markets_Wraparound_Services": "CAFB_Markets_Wraparound_Services.xlsx",
+                "CAFB_Shopping_Partners_Cultures_Served": "CAFB_Shopping_Partners_Cultures_Served.xlsx",
+                "CAFB_Shopping_Partners_HOO": "CAFB_Shopping_Partners_HOO.xlsx",
+                "CAFB_Shopping_Partners_Wraparound_Services": "CAFB_Shopping_Partners_Wraparound_Services.xlsx"
+            }
+            
+            # Load each Excel file
+            self.raw_data = {}
+            for name, filename in files.items():
+                filepath = os.path.join(self.data_dir, filename)
+                if os.path.exists(filepath):
+                    df = pd.read_excel(filepath)
+                    self.raw_data[name] = df
+                    self.logger.info(f"Loaded {name} with shape {df.shape}")
+                else:
+                    self.logger.warning(f"File not found: {filepath}")
+                    
+            # Process data into documents
+            self._process_data()
+            
         except Exception as e:
-            self.logger.error(f"Database connection error: {str(e)}")
+            self.logger.error(f"Error loading data: {str(e)}")
             raise
             
-    def store_data(self, data: Dict[str, Any], language: str) -> bool:
+    def _process_data(self):
         """
-        Store data in the database
+        Process raw data into documents suitable for RAG
         """
         try:
-            conn = self.connect()
-            cursor = conn.cursor()
+            # Process Markets data
+            markets_docs = []
             
-            # TODO: Implement actual storage logic
-            # This is a placeholder implementation
-            cursor.execute("""
-                INSERT INTO data (content, language)
-                VALUES (?, ?)
-            """, (str(data), language))
+            # Combine Markets data
+            if all(k in self.raw_data for k in ["CAFB_Markets_HOO", "CAFB_Markets_Cultures_Served", "CAFB_Markets_Wraparound_Services"]):
+                markets_hoo = self.raw_data["CAFB_Markets_HOO"]
+                markets_cultures = self.raw_data["CAFB_Markets_Cultures_Served"]
+                markets_services = self.raw_data["CAFB_Markets_Wraparound_Services"]
+                
+                # Process each market
+                for _, market in markets_hoo.iterrows():
+                    doc = {
+                        "id": market["Agency ID"],
+                        "name": market["Agency Name"],
+                        "type": "Market",
+                        "address": market["Shipping Address"],
+                        "hours": {
+                            "day": market["Day or Week"],
+                            "start": market["Starting Time"],
+                            "end": market["Ending Time"],
+                            "frequency": market["Frequency"]
+                        },
+                        "requirements": market["Food Pantry Requirements"],
+                        "format": market["Food Format "],
+                        "distribution": market["Distribution Models"],
+                        "cultures_served": markets_cultures[
+                            markets_cultures["Agency ID"] == market["Agency ID"]
+                        ]["Cultural Populations Served"].tolist(),
+                        "services": markets_services[
+                            markets_services["Agency ID"] == market["Agency ID"]
+                        ]["Wraparound Service"].tolist()
+                    }
+                    markets_docs.append(doc)
+                    
+            # Process Shopping Partners data
+            partners_docs = []
             
-            conn.commit()
-            conn.close()
-            return True
+            # Combine Partners data
+            if all(k in self.raw_data for k in ["CAFB_Shopping_Partners_HOO", "CAFB_Shopping_Partners_Cultures_Served", "CAFB_Shopping_Partners_Wraparound_Services"]):
+                partners_hoo = self.raw_data["CAFB_Shopping_Partners_HOO"]
+                partners_cultures = self.raw_data["CAFB_Shopping_Partners_Cultures_Served"]
+                partners_services = self.raw_data["CAFB_Shopping_Partners_Wraparound_Services"]
+                
+                # Process each partner
+                for _, partner in partners_hoo.iterrows():
+                    doc = {
+                        "id": partner["External ID"],
+                        "name": partner["Name"],
+                        "type": "Shopping Partner",
+                        "status": partner["Status"],
+                        "region": partner["Agency Region"],
+                        "county": partner["County/Ward"],
+                        "address": partner["Shipping Address"],
+                        "phone": partner["Phone"],
+                        "hours": {
+                            "day": partner["Day or Week"],
+                            "monthly_options": partner["Monthly Options"],
+                            "start": partner["Starting Time"],
+                            "end": partner["Ending Time"],
+                            "appointment_only": partner["By Appointment Only"]
+                        },
+                        "requirements": partner["Food Pantry Requirements"],
+                        "distribution": partner["Distribution Models"],
+                        "format": partner["Food Format "],
+                        "additional_hours_info": partner["Additional Note on Hours of Operations"],
+                        "cultures_served": partners_cultures[
+                            partners_cultures["Agency ID"] == partner["External ID"]
+                        ]["Cultural Populations Served"].tolist(),
+                        "services": partners_services[
+                            partners_services["Agency ID"] == partner["External ID"]
+                        ]["Wraparound Service"].tolist()
+                    }
+                    partners_docs.append(doc)
+                    
+            # Store all documents
+            self.documents = {
+                "markets": markets_docs,
+                "partners": partners_docs
+            }
+            
         except Exception as e:
-            self.logger.error(f"Error storing data: {str(e)}")
+            self.logger.error(f"Error processing data: {str(e)}")
             raise
             
-    def retrieve_data(self, language: str) -> List[Dict[str, Any]]:
+    def store_embeddings(self, doc_id: str, embeddings: np.ndarray):
         """
-        Retrieve data from the database
+        Store embeddings for a document
         """
-        try:
-            conn = self.connect()
-            cursor = conn.cursor()
-            
-            # TODO: Implement actual retrieval logic
-            # This is a placeholder implementation
-            cursor.execute("""
-                SELECT content FROM data
-                WHERE language = ?
-            """, (language,))
-            
-            results = cursor.fetchall()
-            conn.close()
-            return results
-        except Exception as e:
-            self.logger.error(f"Error retrieving data: {str(e)}")
-            raise
-
-    def get_store_embeddings(self) -> List[Dict[str, Any]]:
+        self.embeddings[doc_id] = embeddings
+        
+    def get_documents(self, doc_type: str = None) -> List[Dict[str, Any]]:
         """
-        Retrieve store embeddings from the database
-        Returns a list of dictionaries containing store details and their embeddings
+        Get all documents, optionally filtered by type
         """
-        try:
-            conn = self.connect()
-            cursor = conn.cursor()
+        if doc_type == "markets":
+            return self.documents["markets"]
+        elif doc_type == "partners":
+            return self.documents["partners"]
+        else:
+            return self.documents["markets"] + self.documents["partners"]
             
-            cursor.execute("""
-                SELECT store_id, name, address, embedding
-                FROM store_embeddings
-            """)
-            
-            results = cursor.fetchall()
-            store_embeddings = []
-            
-            for row in results:
-                store_id, name, address, embedding = row
-                # Convert string representation of embedding back to numpy array
-                embedding_array = np.frombuffer(embedding, dtype=np.float32)
-                store_embeddings.append({
-                    'store_id': store_id,
-                    'name': name,
-                    'address': address,
-                    'embedding': embedding_array
-                })
-            
-            conn.close()
-            return store_embeddings
-        except Exception as e:
-            self.logger.error(f"Error retrieving store embeddings: {str(e)}")
-            raise 
+    def get_document_by_id(self, doc_id: str) -> Dict[str, Any]:
+        """
+        Get a specific document by ID
+        """
+        for doc in self.get_documents():
+            if doc["id"] == doc_id:
+                return doc
+        return None
+        
+    def get_embeddings(self, doc_id: str = None) -> Dict[str, np.ndarray]:
+        """
+        Get embeddings, either for a specific document or all documents
+        """
+        if doc_id:
+            return self.embeddings.get(doc_id)
+        return self.embeddings 
