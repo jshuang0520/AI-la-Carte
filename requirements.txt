@@ -5,4 +5,4 @@ shapely==2.0.7
 openpyxl==3.1.5  # For reading Excel files
 requests  # For API calls
 python-dateutil  # For date handling
-PyYAML  # For configuration files
+PyYAML==6.0.2  # For configuration files
