@@ -1,0 +1,46 @@
+# Application environment
+environment: production
+
+# Database configuration
+db:
+  path: data/database.db
+
+# Language settings
+languages:
+  supported: ['en', 'es']
+  default: 'en'
+
+# Distance settings
+distance:
+  max_threshold: 1.0
+  min_value: 0.0
+  unit: 'km'
+
+# Logging
+log_level: INFO
+
+# User preferences configuration
+user_preferences:
+  keys:
+    language: 'language'
+    food_requirements: 'food_requirements'
+    max_distance: 'max_distance'
+    time_slots: 'time_slots'
+    address: 'address'
+  questions:
+    language: "Which language would you prefer to use? (en/es): "
+    food_requirements: "What are your food requirements? (e.g., halal, kosher, vegetarian): "
+    distance: "What is the maximum distance you can travel to get food? (in km): "
+    time_slots: "What time slots are you available? (e.g., morning, afternoon, evening): "
+    location: "Please enter your full address (country, city, street, zip code): "
+  validation:
+    time_slots:
+      valid_options: ['morning', 'afternoon', 'evening']
+    language:
+      valid_options: ['en', 'es']
+  defaults:
+    language: 'en'
+    food_requirements: ''
+    max_distance: 5
+    time_slots: 'morning'
+    address: '' 
