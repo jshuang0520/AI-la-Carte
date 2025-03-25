@@ -202,7 +202,18 @@ class FilterHelper:
                         week_info_dataframe[f"{which_month} Week {i + 1}'s date"] > pd.to_datetime(requested_date), 
                         "Open on Next Date"
                 ] = week_info_dataframe[f"{which_month} Week {i + 1}'s date"].dt.date 
-                
+
+        # Solving Every Other Week: Find Opened on current date and next opening date
+        week_info_dataframe["Time diff Req Date"] = (pd.to_datetime(requested_date).date() - week_info_dataframe["Date_of_Last_SO"]).apply(lambda x: x.days) % 14
+        week_info_dataframe.loc[week_info_dataframe["Time diff Req Date"] == 0, "Time diff Req Date"] = 14
+        week_info_dataframe.loc[(week_info_dataframe["Time diff Req Date"] == 0) &
+                        (week_info_dataframe["Frequency"] == "Every Other Week")
+                        , "Open on Current Date"] = True
+
+        week_info_dataframe.loc[week_info_dataframe["Frequency"] == "Every Other Week" 
+                        , "Open on Next Date"] = (pd.Timestamp(requested_date) + pd.to_timedelta(week_info_dataframe["Time diff Req Date"], unit='D')).dt.date
+        week_info_dataframe[week_info_dataframe["Frequency"] == "Every Other Week"]
+
         # For a certain agency ref, if there are multiple dates, take the minimum date
         week_info_dataframe["Open on Next Date"] = week_info_dataframe.groupby("agency_ref")["Open on Next Date"].transform('min')
 
