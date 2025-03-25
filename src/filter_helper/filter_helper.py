@@ -78,12 +78,7 @@ class FilterHelper:
             distance_dataframe['Date_of_Last_SO'] = pd.to_datetime(distance_dataframe['Date_of_Last_SO'], unit='ms').dt.date
 
             # Get market data and Shopping Partner data
-            markets_HOO = pd.read_excel("data/CAFB_Markets_HOO.xlsx")
-            SP_HOO = pd.read_excel("data/CAFB_Shopping_Partners_HOO.xlsx")
-            HOO_dataframe = self._mix_markets_SP_HOO(
-                markets_HOO,
-                SP_HOO
-            )
+            HOO_dataframe = self._mix_markets_SP_HOO()
 
             # Find which weeks do the market/shopping partner opens for present and future months (consective 8 weeks)
             result_week_dataframe = self._add_weeks_present(
@@ -120,13 +115,37 @@ class FilterHelper:
         """
         Given markets and shopping partner data, merge them into a single dataframe
         """
-        freq_markets_HOO = markets_HOO[~markets_HOO["Frequency"].isna()]
-        freq_markets_HOO.loc[freq_markets_HOO["Frequency"].str.strip() == "Every week", 'Frequency'] = "Every week 12345"
-        for i in range(5): 
-            freq_markets_HOO[f"Week {i + 1}"] = False
-            freq_markets_HOO.loc[freq_markets_HOO["Frequency"].str.contains(str(i + 1)), f"Week {i + 1}"] = True
 
-        #TODO: Add Shopping Partner data
+        # Preprocessing market data
+        markets_HOO = pd.read_excel("data/CAFB_Markets_HOO.xlsx")
+        
+        # Preprocessing Shopping Partners data
+        Shopping_Partners_HOO = pd.read_excel("data/CAFB_Shopping_Partners_HOO.xlsx")
+        Shopping_Partners_HOO.rename(columns={
+            'Name': 'Agency Name',
+            'External ID': 'Agency ID',
+            'Monthly Options': 'Frequency',
+            }, inplace=True)
+        
+        Shopping_Partners_HOO.drop(columns=[
+               "Last SO Create Date"
+            ], 
+            inplace=True
+        )
+
+        # Getting HOO dataframe
+        HOO_dataframe = pd.concat(
+            [markets_HOO, Shopping_Partners_HOO],
+            ignore_index=True,
+        )
+
+        # Getting weeks information
+        HOO_dataframe = HOO_dataframe[~HOO_dataframe["Frequency"].isna()]
+        HOO_dataframe.loc[HOO_dataframe["Frequency"].str.strip() == "Every week", 'Frequency'] = "Every week 12345"
+        for i in range(5): 
+            HOO_dataframe[f"Week {i + 1}"] = False
+            HOO_dataframe.loc[HOO_dataframe["Frequency"].str.contains(str(i + 1)), f"Week {i + 1}"] = True
+
         return HOO_dataframe
 
     def _add_weeks_present(
@@ -238,7 +257,8 @@ class FilterHelper:
             "Next Week 2's date",
             "Next Week 3's date",
             "Next Week 4's date",
-            "Next Week 5's date"
+            "Next Week 5's date",
+            "Time diff Req Date",
         ], inplace=True)
 
         return 
