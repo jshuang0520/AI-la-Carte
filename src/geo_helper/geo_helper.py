@@ -17,8 +17,9 @@ class GeoHelper:
         self.db_helper = DBHelper()
         
     def find_nearby_food_assistance(
+            self,
             address: str, 
-            radius_miles=10
+            radius_miles: int=10,
         ) -> pd.DataFrame:
         # Connect to CAFB's ArcGIS portal anonymously
         gis = GIS()

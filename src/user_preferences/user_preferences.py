@@ -13,7 +13,8 @@ class UserPreferences:
             'language': "Which language would you prefer to use? (en/es): ",
             'food_requirements': "What are your food requirements? (e.g., halal, kosher, vegetarian): ",
             'distance': "What is the maximum distance you can travel to get food? (in km): ",
-            'time_slots': "What time slots are you available? (e.g., morning, afternoon, evening): ",
+            'date': "What date would you like to receive the food? (YYYY-MM-DD): ",
+            'time_slots': "What time slots are you available? (e.g., morning, afternoon, evening, night): ",
             'location': "Please enter your full address (country, city, street, zip code): "
         }
         
@@ -49,9 +50,12 @@ class UserPreferences:
             
             # Food requirements
             preferences['food_requirements'] = input("What are your food requirements? (e.g., halal, kosher, vegetarian): ")
-            
+
             # Maximum distance
             preferences['max_distance'] = float(input("What is the maximum distance you can travel to get food? (in km): "))
+
+            # Date
+            # preferences['date'] = input("What date would you like to receive the food? (YYYY-MM-DD): ")
             
             # Time slots
             preferences['time_slots'] = input("What time slots are you available? (e.g., morning, afternoon, evening): ")
@@ -59,6 +63,12 @@ class UserPreferences:
             # Address
             preferences['address'] = input("Please enter your full address (country, city, street, zip code): ")
             
+            # preferences['language'] = 'en'
+            # preferences['food_requirements'] = 'vegeterian'
+            # preferences['max_distance'] = 10.0
+            # preferences['date'] = '2025-03-25'
+            # preferences['time_slots'] = 'morning'
+            # preferences['address'] = '3407 Tulane Dr, Hyattsville, MD, 20783'            
             return preferences
             
         except Exception as e:

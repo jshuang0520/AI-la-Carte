@@ -1,7 +1,11 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import pandas as pd
 import datetime
-
 from typing import Dict, Any, List
+
 from src.logger import Logger
 from src.geo_helper import GeoHelper
 from src.rag_helper import RAGHelper
@@ -25,14 +29,14 @@ class FilterHelper:
         try:
             # Step 1: Filter by distance
             geo_stores = self.geo_helper.find_nearby_food_assistance(
-                user_preferences['location'],
-                float(user_preferences['distance'])
+                address=user_preferences.get('address'),
+                radius_miles=user_preferences.get('max_distance', 3.0)
             )
 
             # Filter according to user preferences
             filtered_stores = self._filter_stores(
-                geo_stores,
-                user_preferences
+                stores=geo_stores,
+                user_preferences=user_preferences
             )
             print(filtered_stores)
             return filtered_stores
@@ -62,20 +66,21 @@ class FilterHelper:
 
     def _filter_stores(
         self,
-        stores: pd.DataFrame,             
+        stores: List[Dict[str, Any]],             
         user_preferences: Dict[str, Any]
     ) -> pd.DataFrame:
         """
         Filter stores based on user preferences and return as a DataFrame
         """
         try:
-            requested_date = user_preferences.get('requested_date', pd.Timestamp.now().date())
+            requested_date = user_preferences.get('date', pd.Timestamp.now().date())
             requested_date = pd.to_datetime(requested_date).date()
-            asked_time = user_preferences.get('asked_time', 'morning')
+            asked_time = user_preferences.get('time_slots', 'morning')
 
+            stores = pd.DataFrame(stores)
             # Filter by required columns and convert timestamp to date
             distance_dataframe = stores[['agency_ref', 'phone', 'email', 'Date_of_Last_SO', 'Distance']]
-            distance_dataframe['Date_of_Last_SO'] = pd.to_datetime(distance_dataframe['Date_of_Last_SO'], unit='ms').dt.date
+            distance_dataframe.loc[:, 'Date_of_Last_SO'] = pd.to_datetime(distance_dataframe['Date_of_Last_SO'], unit='ms').dt.date
 
             # Get market data and Shopping Partner data
             HOO_dataframe = self._mix_markets_SP_HOO()
@@ -108,45 +113,61 @@ class FilterHelper:
             raise
 
     def _mix_markets_SP_HOO(
-        self,
-        markets_HOO: pd.DataFrame,
-        SP_HOO: pd.DataFrame
+        self
     ) -> pd.DataFrame:
         """
         Given markets and shopping partner data, merge them into a single dataframe
         """
+        try:
+            # Construct absolute paths for the data files
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            markets_file = os.path.join(base_dir, "data", "CAFB_Markets_HOO.xlsx")
+            shopping_partners_file = os.path.join(base_dir, "data", "CAFB_Shopping_Partners_HOO.xlsx")
 
-        # Preprocessing market data
-        markets_HOO = pd.read_excel("data/CAFB_Markets_HOO.xlsx")
-        
-        # Preprocessing Shopping Partners data
-        Shopping_Partners_HOO = pd.read_excel("data/CAFB_Shopping_Partners_HOO.xlsx")
-        Shopping_Partners_HOO.rename(columns={
-            'Name': 'Agency Name',
-            'External ID': 'Agency ID',
-            'Monthly Options': 'Frequency',
-            }, inplace=True)
-        
-        Shopping_Partners_HOO.drop(columns=[
-               "Last SO Create Date"
-            ], 
-            inplace=True
-        )
+            if not os.path.exists(markets_file):   
+                self.logger.error(f"File not found: {markets_file}")
+                raise FileNotFoundError(f"File not found: {markets_file}")
 
-        # Getting HOO dataframe
-        HOO_dataframe = pd.concat(
-            [markets_HOO, Shopping_Partners_HOO],
-            ignore_index=True,
-        )
+            if not os.path.exists(shopping_partners_file):  
+                self.logger.error(f"File not found: {shopping_partners_file}")
+                raise FileNotFoundError(f"File not found: {shopping_partners_file}")
 
-        # Getting weeks information
-        HOO_dataframe = HOO_dataframe[~HOO_dataframe["Frequency"].isna()]
-        HOO_dataframe.loc[HOO_dataframe["Frequency"].str.strip() == "Every week", 'Frequency'] = "Every week 12345"
-        for i in range(5): 
-            HOO_dataframe[f"Week {i + 1}"] = False
-            HOO_dataframe.loc[HOO_dataframe["Frequency"].str.contains(str(i + 1)), f"Week {i + 1}"] = True
+            markets_HOO = pd.read_excel(markets_file)
+            Shopping_Partners_HOO = pd.read_excel(shopping_partners_file)
 
-        return HOO_dataframe
+            # Preprocessing Shopping Partners data
+            Shopping_Partners_HOO.rename(columns={
+                'Name': 'Agency Name',
+                'External ID': 'Agency ID',
+                'Monthly Options': 'Frequency',
+            }, inplace=True)                # Names same as markets dataframe
+            Shopping_Partners_HOO.drop(columns=[
+                "Last SO Create Date"
+            ], inplace=True)               
+
+            # Getting HOO dataframe
+            HOO_dataframe = pd.concat(
+                [markets_HOO, Shopping_Partners_HOO],
+                ignore_index=True,
+            )
+
+            # TODO: Solve the issue of "As Needed" and Ending Time = "Until Food Runs Out"
+            rows_with_as_needed = HOO_dataframe.apply(lambda row: row.astype(str).str.contains("As Needed", na=False).any(), axis=1)
+            HOO_dataframe = HOO_dataframe[~rows_with_as_needed]
+            HOO_dataframe = HOO_dataframe[HOO_dataframe["Ending Time"] != "Until Food Runs Out"]
+
+            # Getting weeks information
+            HOO_dataframe = HOO_dataframe[~HOO_dataframe["Frequency"].isna()]
+            HOO_dataframe.loc[HOO_dataframe["Frequency"].str.strip() == "Every week", 'Frequency'] = "Every week 12345"
+            for i in range(5): 
+                HOO_dataframe[f"Week {i + 1}"] = False
+                HOO_dataframe.loc[HOO_dataframe["Frequency"].str.contains(str(i + 1)), f"Week {i + 1}"] = True
+
+            return HOO_dataframe
+
+        except Exception as e:
+            self.logger.error(f"Error in _mix_markets_SP_HOO: {str(e)}")
+            raise
 
     def _add_weeks_present(
         self,
@@ -157,7 +178,7 @@ class FilterHelper:
         """
         Given date information, find 8 weeks from the start of the date's month when the shop/market is open
         """
-        time_dataframe = pd.merge(
+        HOO_dist_df = pd.merge(
             distance_dataframe, 
             HOO_dataframe, 
             left_on='agency_ref', 
@@ -175,29 +196,30 @@ class FilterHelper:
             "Sunday": 6
         }
 
-        time_dataframe["Weekday"] = time_dataframe["Day or Week"].map(weekday_database)
-        time_dataframe["This Month's 1st day"] = datetime.datetime(requested_date.year, requested_date.month, 1)
-        time_dataframe["This Month's 1st day"] = pd.to_datetime(time_dataframe["This Month's 1st day"])
-        time_dataframe["Next Month's 1st day"] = (time_dataframe["This Month's 1st day"] 
+        HOO_dist_df["Weekday"] = HOO_dist_df["Day or Week"].map(weekday_database)
+        HOO_dist_df["This Month's 1st day"] = datetime.datetime(requested_date.year, requested_date.month, 1)
+        HOO_dist_df["This Month's 1st day"] = pd.to_datetime(HOO_dist_df["This Month's 1st day"])
+        HOO_dist_df["Next Month's 1st day"] = (HOO_dist_df["This Month's 1st day"] 
                                                 + pd.DateOffset(months=1))
 
         for which_month in ["This", "Next"]:    # Running on month
             for i in range(5):  # Running on week
                 # Find ith date of the month
-                time_delta = pd.to_timedelta(((time_dataframe["Weekday"]
-                                                - time_dataframe[f"{which_month} Month's 1st day"].dt.weekday \
+                time_delta = pd.to_timedelta(((HOO_dist_df["Weekday"]
+                                                - HOO_dist_df[f"{which_month} Month's 1st day"].dt.weekday \
                                                 + 7) % 7) + 7 * i, unit='D')
-                time_dataframe[f"{which_month} Week {i + 1}'s date"] = time_dataframe[f"{which_month} Month's 1st day"] \
+                HOO_dist_df[f"{which_month} Week {i + 1}'s date"] = HOO_dist_df[f"{which_month} Month's 1st day"] \
                                                                     + time_delta
                 
                 # Check whether the date is in the same month
-                not_same_month = time_dataframe[f"{which_month} Week {i + 1}'s date"].dt.month \
-                                != time_dataframe[f"{which_month} Month's 1st day"].dt.month
-                time_dataframe.loc[not_same_month, f"{which_month} Week {i + 1}'s date"] = None
+                not_same_month = HOO_dist_df[f"{which_month} Week {i + 1}'s date"].dt.month \
+                                != HOO_dist_df[f"{which_month} Month's 1st day"].dt.month
+                HOO_dist_df.loc[not_same_month, f"{which_month} Week {i + 1}'s date"] = None
                 
                 # Check whether it is working on that date or not
-                time_dataframe.loc[~time_dataframe[f"Week {i + 1}"], f"{which_month} Week {i + 1}'s date"] = None
+                HOO_dist_df.loc[~HOO_dist_df[f"Week {i + 1}"], f"{which_month} Week {i + 1}'s date"] = None
         
+        return HOO_dist_df
 
     def _add_current_next_dates(
         self,
@@ -223,11 +245,13 @@ class FilterHelper:
                 ] = week_info_dataframe[f"{which_month} Week {i + 1}'s date"].dt.date 
 
         # Solving Every Other Week: Find Opened on current date and next opening date
-        week_info_dataframe["Time diff Req Date"] = (pd.to_datetime(requested_date).date() - week_info_dataframe["Date_of_Last_SO"]).apply(lambda x: x.days) % 14
+        week_info_dataframe["Time diff Req Date"] = (pd.to_datetime(requested_date).date() 
+                                                     - week_info_dataframe["Date_of_Last_SO"]
+                                                    ).apply(lambda x: x.days) % 14
         week_info_dataframe.loc[week_info_dataframe["Time diff Req Date"] == 0, "Time diff Req Date"] = 14
         week_info_dataframe.loc[(week_info_dataframe["Time diff Req Date"] == 0) &
                         (week_info_dataframe["Frequency"] == "Every Other Week")
-                        , "Open on Current Date"] = True
+                        , "Open on Requested Date"] = True
 
         week_info_dataframe.loc[week_info_dataframe["Frequency"] == "Every Other Week" 
                         , "Open on Next Date"] = (pd.Timestamp(requested_date) + pd.to_timedelta(week_info_dataframe["Time diff Req Date"], unit='D')).dt.date
@@ -237,9 +261,7 @@ class FilterHelper:
         week_info_dataframe["Open on Next Date"] = week_info_dataframe.groupby("agency_ref")["Open on Next Date"].transform('min')
 
         # Remove unnecessary columns
-        result_date_dataframe = week_info_dataframe.copy()
-        result_date_dataframe.drop(columns=[
-            "Day or Week", 
+        week_info_dataframe.drop(columns=[
             "Weekday", 
             "This Month's 1st day", 
             "Next Month's 1st day",
@@ -261,7 +283,7 @@ class FilterHelper:
             "Time diff Req Date",
         ], inplace=True)
 
-        return 
+        return week_info_dataframe
 
     def _filter_time_information(
         self,
@@ -307,4 +329,4 @@ class FilterHelper:
             "Max Ending Time"
         ], inplace=True)
         
-        return date_info_dataframe 
+        return date_info_dataframe
