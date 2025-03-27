@@ -81,8 +81,8 @@ class FilterHelper:
             requested_date = pd.to_datetime(requested_date).date()
             asked_time = user_preferences.get('time_slots', 'morning')
 
-            stores = pd.DataFrame(stores)
             # Filter by required columns and convert timestamp to date
+            stores = pd.DataFrame(stores)
             distance_dataframe = stores[
                 ['agency_ref', 'phone', 'email', 'Date_of_Last_SO', 'Distance']
             ]
@@ -92,6 +92,9 @@ class FilterHelper:
 
             # Get market data and Shopping Partner data
             HOO_dataframe = self._mix_markets_SP_HOO()
+            if HOO_dataframe["Frequency"].str.contains('As Needed').any():
+                self.logger.warning("As Needed found in Frequency column.")
+                raise ValueError("As Needed found in Frequency column.")
 
             # Find which weeks do the market/shopping partner opens for
             # present and future months (consecutive 8 weeks)
@@ -117,6 +120,7 @@ class FilterHelper:
             filtered_stores = markets_information[
                 markets_information["Open on Requested Date"]
             ].copy()
+
             return filtered_stores
 
         except Exception as e:
@@ -133,23 +137,24 @@ class FilterHelper:
             base_dir = os.path.dirname(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             )
-            markets_file = os.path.join(base_dir, "data", "CAFB_Markets_HOO.xlsx")
-            shopping_partners_file = os.path.join(
-                base_dir, "data", "CAFB_Shopping_Partners_HOO.xlsx"
-            )
 
+            # Preprocessing market data
+            markets_file = os.path.join(base_dir, "data", "CAFB_Markets_HOO.xlsx")
             if not os.path.exists(markets_file):
                 self.logger.error(f"File not found: {markets_file}")
                 raise FileNotFoundError(f"File not found: {markets_file}")
+            markets_HOO = pd.read_excel(markets_file)
+            markets_HOO.drop_duplicates(inplace=True)
 
+            # Preprocessing Shopping Partners data
+            shopping_partners_file = os.path.join(
+                base_dir, "data", "CAFB_Shopping_Partners_HOO.xlsx"
+            )
             if not os.path.exists(shopping_partners_file):
                 self.logger.error(f"File not found: {shopping_partners_file}")
                 raise FileNotFoundError(f"File not found: {shopping_partners_file}")
-
-            markets_HOO = pd.read_excel(markets_file)
             Shopping_Partners_HOO = pd.read_excel(shopping_partners_file)
-
-            # Preprocessing Shopping Partners data
+            Shopping_Partners_HOO.drop_duplicates(inplace=True)
             Shopping_Partners_HOO.rename(columns={
                 'Name': 'Agency Name',
                 'External ID': 'Agency ID',
@@ -159,25 +164,22 @@ class FilterHelper:
                 "Last SO Create Date"
             ], inplace=True)
 
-            # Getting HOO dataframe
+            # Adding week information to HOO_dataframe
             HOO_dataframe = pd.concat(
                 [markets_HOO, Shopping_Partners_HOO],
                 ignore_index=True,
             )
-
-            # TODO: Solve the issue of "As Needed" and Ending Time =
-            # "Until Food Runs Out"
-            rows_with_as_needed = HOO_dataframe.apply(
-                lambda row: row.astype(str).str.contains("As Needed", na=False).any(),
-                axis=1
-            )
-            HOO_dataframe = HOO_dataframe[~rows_with_as_needed]
-            HOO_dataframe = HOO_dataframe[
-                HOO_dataframe["Ending Time"] != "Until Food Runs Out"
-            ]
-
-            # Getting weeks information
-            HOO_dataframe = HOO_dataframe[~HOO_dataframe["Frequency"].isna()]
+            HOO_dataframe = self._deal_with_outliers(HOO_dataframe)
+            if HOO_dataframe["Frequency"].str.contains('As Needed').any():
+                self.logger.warning("As Needed found in Frequency column.")
+                raise ValueError("As Needed found in Frequency column.")
+            
+            HOO_dataframe["Starting Time"] = pd.to_datetime(
+                HOO_dataframe["Starting Time"], format="%H:%M:%S"
+            ).dt.time
+            HOO_dataframe["Ending Time"] = pd.to_datetime(
+                HOO_dataframe["Ending Time"], format="%H:%M:%S"
+            ).dt.time
             HOO_dataframe.loc[
                 HOO_dataframe["Frequency"].str.strip() == "Every week",
                 'Frequency'
@@ -195,6 +197,111 @@ class FilterHelper:
         except Exception as e:
             self.logger.error(f"Error in _mix_markets_SP_HOO: {str(e)}")
             raise
+
+    def _deal_with_outliers(
+            self, 
+            HOO_dataframe: pd.DataFrame
+        ) -> pd.DataFrame:
+        """
+        Adds flags to outliers in dataframe 
+        """
+        # Ending Time: "Until Food Runs Out" will have flag "Until Food Runs Out"
+        HOO_dataframe["Until Food Runs Out flag"] = False
+        HOO_dataframe.loc[
+            HOO_dataframe["Ending Time"] == "Until Food Runs Out", 
+                          "Until Food Runs Out flag"
+        ] = True
+        HOO_dataframe["Ending Time"] = HOO_dataframe["Ending Time"].replace(
+            "Until Food Runs Out", "23:59:59"
+        )
+
+        # "As Needed" value is in Day or Week, Frequency, Starting and Ending Time cols 
+        # This is for changing As Needed in Day or Week and adding flag
+        HOO_dataframe["Day or Week As Needed flag"] = False
+        HOO_dataframe.loc[
+            HOO_dataframe["Day or Week"].str.contains("As Needed", na=False),
+            "Day or Week As Needed flag"
+        ] = True
+        day_week_as_needed = HOO_dataframe[
+            HOO_dataframe["Day or Week As Needed flag"] == True
+        ].copy()
+        HOO_dataframe = HOO_dataframe[
+            ~HOO_dataframe["Day or Week As Needed flag"]
+        ].copy()
+        weeks = [
+            "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+            "Saturday", "Sunday"
+        ]
+        for week in weeks: 
+            day_week_as_needed["Day or Week"] = week
+            HOO_dataframe = pd.concat(
+                [HOO_dataframe, day_week_as_needed], ignore_index=True
+            )
+
+        # This is for changing As Needed in Frequency and adding flag
+        HOO_dataframe["Frequency As Needed flag"] = False
+        HOO_dataframe.loc[
+            HOO_dataframe["Frequency"].str.contains("As Needed", na=False),
+            "Frequency As Needed flag"
+        ] = True
+        HOO_dataframe["Frequency"] = HOO_dataframe["Frequency"].replace(
+            "As Needed", "Every week"
+        )
+
+        # This is for changing As Needed in Starting and Ending Time and adding flag
+        HOO_dataframe["Time As Needed flag"] = False
+        HOO_dataframe.loc[
+            HOO_dataframe["Starting Time"].str.contains("As Needed", na=False),
+            "Time As Needed flag"
+        ] = True
+        HOO_dataframe["Starting Time"] = HOO_dataframe["Starting Time"].replace(
+            "As Needed", "00:00:00"
+        )
+        HOO_dataframe["Ending Time"] = HOO_dataframe["Ending Time"].replace(
+            "As Needed", "23:59:59"
+        ) 
+
+        # TODO: Day or Week: NULL. Remove them
+        HOO_dataframe = HOO_dataframe[HOO_dataframe["Day or Week"].notna()]
+        # HOO_dataframe["Day or Week NULL flag"] = False
+        # HOO_dataframe.loc[
+        #     HOO_dataframe["Day or Week"].isna(),
+        #     "Day or Week NULL flag"
+        # ] = True
+        # day_week_as_needed = HOO_dataframe[
+        #     HOO_dataframe["Day or Week NULL flag"] == True
+        # ].copy()
+        # HOO_dataframe = HOO_dataframe[
+        #     ~HOO_dataframe["Day or Week NULL flag"]
+        # ].copy()
+        # for week in weeks: 
+        #     day_week_as_needed["Day or Week"] = week
+        #     HOO_dataframe = pd.concat(
+        #         [HOO_dataframe, day_week_as_needed], ignore_index=True
+        #     )
+        
+        # Frequency: NULL. Replace with Every week and add flag 
+        HOO_dataframe["Frequency NULL flag"] = False
+        HOO_dataframe.loc[
+            HOO_dataframe["Frequency"].isna(), "Frequency NULL flag"
+        ] = True
+        HOO_dataframe["Frequency"] = HOO_dataframe["Frequency"].fillna("Every week")
+
+        # Starting Time: NULL. Replace with 00:00:00 and add flag
+        HOO_dataframe["Starting Time NULL flag"] = False
+        HOO_dataframe.loc[
+            HOO_dataframe["Starting Time"].isna(), "Starting Time NULL flag"
+        ] = True
+        HOO_dataframe["Starting Time"] = HOO_dataframe["Starting Time"].fillna("00:00:00")
+
+        # Ending Time: NULL. Replace with 23:59:59 and add flag 
+        HOO_dataframe["Ending Time NULL flag"] = False
+        HOO_dataframe.loc[
+            HOO_dataframe["Ending Time"].isna(), "Ending Time NULL flag"
+        ] = True
+        HOO_dataframe["Ending Time"] = HOO_dataframe["Ending Time"].fillna("23:59:59")
+
+        return HOO_dataframe
 
     def _add_weeks_present(
         self,
@@ -311,7 +418,7 @@ class FilterHelper:
         ).dt.date
         week_info_dataframe[week_info_dataframe["Frequency"] == "Every Other Week"]
 
-        # For a certain agency ref, if there are multiple dates, take the minimum date
+        # For a certain agency ref, if there are multiple dates, take the minimum date 
         week_info_dataframe["Open on Next Date"] = week_info_dataframe.groupby(
             "agency_ref"
         )["Open on Next Date"].transform('min')
