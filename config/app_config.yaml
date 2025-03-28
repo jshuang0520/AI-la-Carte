@@ -7,60 +7,35 @@ db:
 
 # Language settings
 languages:
-  supported: ['en', 'es']
-  default: 'en'
+  supported: [en, es]
+  default: en
 
 # Distance settings
 distance:
   max_threshold: 10.0
   min_value: 0.0
-  unit: 'mile'
+  unit: mile
 
 # Time settings
 time:
-  periods:
-    - 'morning'   # 6:00 AM - 11:59 AM
-    - 'afternoon' # 12:00 PM - 4:59 PM
-    - 'evening'   # 5:00 PM - 8:59 PM
-    - 'night'     # 9:00 PM - 11:59 PM
+  periods: [morning, afternoon, evening, night]
   period_ranges:
     morning:
-      start: '06:00'
-      end: '11:59'
+      start: "06:00"
+      end: "11:59"
     afternoon:
-      start: '12:00'
-      end: '16:59'
+      start: "12:00"
+      end: "16:59"
     evening:
-      start: '17:00'
-      end: '20:59'
+      start: "17:00"
+      end: "20:59"
     night:
-      start: '21:00'
-      end: '23:59'
-  days_ahead: 7  # How many days ahead to show in options
+      start: "21:00"
+      end: "23:59"
+  days_ahead: 7
   format:
-    date: '%b %d'  # Mar 25
-    time: '%H:%M'  # 09:05
-  # Sample available time slots for development
-  available_slots: [
-    {'date': '2024-03-25', 'period': 'afternoon'},
-    {'date': '2024-03-25', 'period': 'evening'},
-    {'date': '2024-03-25', 'period': 'night'},
-    {'date': '2024-03-26', 'period': 'morning'},
-    {'date': '2024-03-27', 'period': 'afternoon'},
-    {'date': '2024-03-30', 'period': 'evening'},
-    {'date': '2024-04-01', 'period': 'morning'},
-    {'date': '2024-04-01', 'period': 'afternoon'}
-  ]
-  # Specific days that are unavailable (e.g., holidays, closed days)
-  unavailable_days: [
-    '2024-03-28',  # Example: Closed on March 28
-    '2024-03-29'   # Example: Closed on March 29
-  ]
-  # Specific time slots that are unavailable (e.g., staff meetings)
-  unavailable_slots: [
-    {'date': '2024-03-26', 'period': 'afternoon'},
-    {'date': '2024-03-26', 'period': 'evening'}
-  ]
+    date: "%b %d"
+    time: "%H:%M"
 
 # Logging
 log_level: INFO

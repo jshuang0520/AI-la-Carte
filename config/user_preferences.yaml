@@ -1,0 +1,37 @@
+user_preferences:
+  categories:
+    language:
+      key: "${LANGUAGE_KEY}"
+      question: "${LANGUAGE_QUESTION}"
+      valid_options: ${LANGUAGE_OPTIONS}
+      default: "${LANGUAGE_DEFAULT}"
+    food_requirements:
+      key: "${FOOD_REQ_KEY}"
+      question: "${FOOD_REQ_QUESTION}"
+      valid_options: ${FOOD_REQ_OPTIONS}
+      default: "${FOOD_REQ_DEFAULT}"
+    max_distance:
+      key: "${DISTANCE_KEY}"
+      question: "${DISTANCE_QUESTION}"
+      valid_options: ${DISTANCE_OPTIONS}
+      default: ${DISTANCE_DEFAULT}
+    available_time_slots:
+      key: "${TIME_SLOTS_KEY}"
+      question: "${TIME_SLOTS_QUESTION}"
+      valid_options: ${TIME_SLOTS_OPTIONS}
+      default: "${TIME_SLOTS_DEFAULT}"
+    address:
+      key: "${ADDRESS_KEY}"
+      question: "${ADDRESS_QUESTION}"
+      valid_options: ${ADDRESS_OPTIONS}
+      default: "${ADDRESS_DEFAULT}"
+    pickup_datetime:
+      key: "${PICKUP_DATETIME_KEY}"
+      question: "${PICKUP_DATETIME_QUESTION}"
+      valid_options: ${PICKUP_DATETIME_OPTIONS}
+      default: "${PICKUP_DATETIME_DEFAULT}"
+    services:
+      key: "${SERVICES_KEY}"
+      question: "${SERVICES_QUESTION}"
+      valid_options: ${SERVICES_OPTIONS}
+      default: "${SERVICES_DEFAULT}" 
