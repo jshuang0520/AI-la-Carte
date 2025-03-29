@@ -2,6 +2,8 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import pandas as pd
+
 from src.interface_helper import InterfaceHelper
 from src.filter_helper import FilterHelper
 from src.user_preferences.user_preferences import UserPreferences
@@ -19,6 +21,7 @@ class WorkflowInterface:
         self.interface_helper = InterfaceHelper()
         self.user_preferences = UserPreferences()
         self.translate_helper = TranslateHelper()
+        self.filter_helper = FilterHelper() 
         self.rag_helper = RAGHelper()
         self.logger = Logger()
 
@@ -42,13 +45,15 @@ class WorkflowInterface:
             prompt = self.rag_helper.create_prompt_template(translated_preferences)
             print(f"\nGenerated prompt: {prompt}")
             
-            # The following steps are commented out for now as we're testing only the first half
-            """
+
             # Step 4: Get recommendations using filter helper
             recommended_stores = self.filter_helper.get_recommendations(
                 user_preferences
             )
+            print(f"\nRecommended stores:\n {recommended_stores}")
             
+            # The following steps are commented out for now as we're testing only the first half
+            """            
             # Step 5: Display results in user's preferred language
             self.interface_helper.display_results(
                 recommended_stores,

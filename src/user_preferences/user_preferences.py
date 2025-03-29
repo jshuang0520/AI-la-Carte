@@ -29,10 +29,12 @@ class UserPreferences:
             preferences[self.keys.language] = input(self.questions.get('language', "Which language would you prefer to use? (en/es): "))
             
             # Food requirements
+
             preferences[self.keys.food_requirements] = input(self.questions.get('food_requirements', "What are your food requirements? (e.g., halal, kosher, vegetarian): "))
             
             # Maximum distance
             preferences[self.keys.max_distance] = float(input(self.questions.get('distance', "What is the maximum distance you can travel to get food? (in km): ")))
+
             
             # Time slots
             preferences[self.keys.time_slots] = input(self.questions.get('time_slots', "What time slots are you available? (e.g., morning, afternoon, evening): "))
@@ -40,6 +42,12 @@ class UserPreferences:
             # Address
             preferences[self.keys.address] = input(self.questions.get('location', "Please enter your full address (country, city, street, zip code): "))
             
+            # preferences['language'] = 'en'
+            # preferences['food_requirements'] = 'vegeterian'
+            # preferences['max_distance'] = 10.0
+            # preferences['date'] = '2025-03-25'
+            # preferences['time_slots'] = 'morning'
+            # preferences['address'] = '3407 Tulane Dr, Hyattsville, MD, 20783'            
             return preferences
             
         except Exception as e:
