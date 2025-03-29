@@ -1,0 +1,107 @@
+# Application environment
+environment: development  # Change to 'production' for production environment
+
+# Database configuration
+db:
+  path: data/database.db
+
+# Language settings
+languages:
+  supported: ['en', 'es']
+  default: 'en'
+
+# Distance settings
+distance:
+  max_threshold: 10.0
+  min_value: 0.0
+  unit: 'mile'
+
+# Time settings
+time:
+  periods:
+    - 'morning'   # 6:00 AM - 11:59 AM
+    - 'afternoon' # 12:00 PM - 4:59 PM
+    - 'evening'   # 5:00 PM - 8:59 PM
+    - 'night'     # 9:00 PM - 11:59 PM
+  period_ranges:
+    morning:
+      start: '06:00'
+      end: '11:59'
+    afternoon:
+      start: '12:00'
+      end: '16:59'
+    evening:
+      start: '17:00'
+      end: '20:59'
+    night:
+      start: '21:00'
+      end: '23:59'
+  days_ahead: 7  # How many days ahead to show in options
+  format:
+    date: '%b %d'  # Mar 25
+    time: '%H:%M'  # 09:05
+  # Sample available time slots for development
+  available_slots: [
+    {'date': '2024-03-25', 'period': 'afternoon'},
+    {'date': '2024-03-25', 'period': 'evening'},
+    {'date': '2024-03-25', 'period': 'night'},
+    {'date': '2024-03-26', 'period': 'morning'},
+    {'date': '2024-03-27', 'period': 'afternoon'},
+    {'date': '2024-03-30', 'period': 'evening'},
+    {'date': '2024-04-01', 'period': 'morning'},
+    {'date': '2024-04-01', 'period': 'afternoon'}
+  ]
+  # Specific days that are unavailable (e.g., holidays, closed days)
+  unavailable_days: [
+    '2024-03-28',  # Example: Closed on March 28
+    '2024-03-29'   # Example: Closed on March 29
+  ]
+  # Specific time slots that are unavailable (e.g., staff meetings)
+  unavailable_slots: [
+    {'date': '2024-03-26', 'period': 'afternoon'},
+    {'date': '2024-03-26', 'period': 'evening'}
+  ]
+
+# Logging
+log_level: INFO
+
+# User preferences configuration
+user_preferences:
+  # Keys used in the application
+  keys:
+    language: 'language'
+    food_requirements: 'food_requirements'
+    max_distance: 'max_distance'
+    time_slots: 'time_slots'
+    address: 'address'
+    pickup_datetime: 'pickup_datetime'
+  
+  # Questions for interactive mode
+  questions:
+    language: "Which language would you prefer to use? (en/es): "
+    food_requirements: "What are your food requirements? (e.g., halal, kosher, vegetarian): "
+    distance: "What is the maximum distance you can travel to get food? (in miles): "
+    time_slots: "Please select your preferred pickup time from the available slots:"
+    location: "Please enter your full address (country, city, street, zip code): "
+  
+  # Validation rules
+  validation:
+    language:
+      valid_options: ['en', 'es']
+  
+  # Default values for development mode
+  defaults:
+    language: 'en'
+    food_requirements: 'vegetarian'
+    max_distance: 6
+    time_slots: [
+      "Mar 25 afternoon",
+      "Mar 25 evening",
+      "Mar 25 night",
+      "Mar 26 morning",
+      "Mar 27 afternoon",
+      "Mar 30 evening",
+      "Apr 1 morning",
+      "Apr 1 afternoon"
+    ]
+    address: '5702 Vassar Drive, College Park, Maryland, 20740' 

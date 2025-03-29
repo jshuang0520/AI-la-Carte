@@ -1,67 +1,46 @@
 import os
-import yaml
 from typing import Dict, Any, List
 from src.logger import Logger
 from src.translate_helper import TranslateHelper
+from src.config import Config
 
 class UserPreferences:
     def __init__(self):
         self.logger = Logger()
         self.translate_helper = TranslateHelper()
-        self.dev_config = self._load_dev_config()
-        self.questions = {
-            'language': "Which language would you prefer to use? (en/es): ",
-            'food_requirements': "What are your food requirements? (e.g., halal, kosher, vegetarian): ",
-            'distance': "What is the maximum distance you can travel to get food? (in km): ",
-            'date': "What date would you like to receive the food? (YYYY-MM-DD): ",
-            'time_slots': "What time slots are you available? (e.g., morning, afternoon, evening, night): ",
-            'location': "Please enter your full address (country, city, street, zip code): "
-        }
+        self.config = Config()
+        self.questions = self.config.get_nested('user_preferences', 'questions', default={})
+        self.keys = self.config.preference_keys
         
-    def _load_dev_config(self) -> Dict[str, Any]:
-        """
-        Load development configuration if available
-        """
-        try:
-            config_path = os.path.join('config', 'dev_config.yaml')
-            if os.path.exists(config_path):
-                with open(config_path, 'r') as f:
-                    return yaml.safe_load(f)
-            return None
-        except Exception as e:
-            self.logger.warning(f"Could not load dev config: {str(e)}")
-            return None
-            
     def collect_preferences(self) -> Dict[str, Any]:
         """
-        Collect user preferences, using dev config if available
+        Collect user preferences, using config if in development mode
         """
         try:
-            # If in development mode and config exists, use default values
-            if self.dev_config and self.dev_config.get('environment') == 'development':
+            # If in development mode, use default values from config
+            if self.config.is_development():
                 self.logger.info("Using development configuration for user preferences")
-                return self.dev_config['user_preferences']
+                return self.config.get_nested('user_preferences', 'defaults', default={})
             
             # Otherwise, collect preferences interactively
             preferences = {}
             
             # Language preference
-            preferences['language'] = input("Which language would you prefer to use? (en/es): ")
+            preferences[self.keys.language] = input(self.questions.get('language', "Which language would you prefer to use? (en/es): "))
             
             # Food requirements
-            preferences['food_requirements'] = input("What are your food requirements? (e.g., halal, kosher, vegetarian): ")
 
+            preferences[self.keys.food_requirements] = input(self.questions.get('food_requirements', "What are your food requirements? (e.g., halal, kosher, vegetarian): "))
+            
             # Maximum distance
-            preferences['max_distance'] = float(input("What is the maximum distance you can travel to get food? (in km): "))
+            preferences[self.keys.max_distance] = float(input(self.questions.get('distance', "What is the maximum distance you can travel to get food? (in km): ")))
 
-            # Date
-            # preferences['date'] = input("What date would you like to receive the food? (YYYY-MM-DD): ")
             
             # Time slots
-            preferences['time_slots'] = input("What time slots are you available? (e.g., morning, afternoon, evening): ")
+            preferences[self.keys.time_slots] = input(self.questions.get('time_slots', "What time slots are you available? (e.g., morning, afternoon, evening): "))
             
             # Address
-            preferences['address'] = input("Please enter your full address (country, city, street, zip code): ")
+            preferences[self.keys.address] = input(self.questions.get('location', "Please enter your full address (country, city, street, zip code): "))
             
             # preferences['language'] = 'en'
             # preferences['food_requirements'] = 'vegeterian'
@@ -80,17 +59,19 @@ class UserPreferences:
         Validate user answers based on the question type
         """
         try:
-            if key == 'language':
-                return answer.lower() in ['en', 'es']
-            elif key == 'distance':
+            if key == self.keys.language:
+                valid_options = self.config.get_validation_options('language')
+                return answer.lower() in valid_options
+            elif key == self.keys.max_distance:
                 try:
-                    float(answer)
-                    return True
+                    distance = float(answer)
+                    distance_config = self.config.get_distance_config()
+                    return distance >= distance_config['min_value']
                 except ValueError:
                     return False
-            elif key == 'time_slots':
-                valid_slots = ['morning', 'afternoon', 'evening']
-                return all(slot.lower() in valid_slots for slot in answer.split(','))
+            elif key == self.keys.time_slots:
+                valid_options = self.config.get_validation_options('time_slots')
+                return all(slot.lower() in valid_options for slot in answer.split(','))
             else:
                 return bool(answer.strip())
         except Exception as e:
@@ -103,14 +84,19 @@ class UserPreferences:
         """
         try:
             # Verify language
-            if preferences['language'] not in ['en', 'es']:
-                raise ValueError("Language must be 'en' or 'es'")
+            valid_languages = self.config.get_validation_options('language')
+            if preferences[self.keys.language] not in valid_languages:
+                raise ValueError(f"Language must be one of: {', '.join(valid_languages)}")
                 
-            # Verify max distance is positive
-            if preferences['max_distance'] <= 0:
-                raise ValueError("Maximum distance must be positive")
+            # Verify max distance is positive and within limits
+            distance_config = self.config.get_distance_config()
+            if preferences[self.keys.max_distance] <= distance_config['min_value']:
+                raise ValueError(f"Maximum distance must be greater than {distance_config['min_value']} {distance_config['unit']}")
                 
-            # Add more verifications as needed
+            # Verify time slots
+            valid_slots = self.config.get_validation_options('time_slots')
+            if not all(slot in valid_slots for slot in preferences[self.keys.time_slots].split(',')):
+                raise ValueError(f"Time slots must be one of: {', '.join(valid_slots)}")
             
             return preferences
         except Exception as e:
