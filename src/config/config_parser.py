@@ -1,16 +1,19 @@
 import os
 import yaml
 from dotenv import load_dotenv
-from typing import Dict, Any, List, Optional
-from src.logger import Logger
+from typing import Any
+
+# If you have a Logger module in src/logger.py, ensure it is imported correctly.
+# from src.logger import Logger
 
 class ConfigParser:
-    def __init__(self, config_file="config.yaml"):
+    def __init__(self, config_file="config/config.yaml"):
+        # config_file path is relative to the project root
         self.config_file = config_file
-        load_dotenv()  # load environment variables from .env file if present
+        load_dotenv()  # Load environment variables from .env file if present
         self.config = self._load_and_override_config()
 
-    def _load_and_override_config(self):
+    def _load_and_override_config(self) -> Any:
         # Load the base YAML config template
         with open(self.config_file, "r") as f:
             config = yaml.safe_load(f)
@@ -25,7 +28,6 @@ class ConfigParser:
                 else:
                     env_val = os.getenv(env_key)
                     if env_val is not None:
-                        # Optionally, cast the env var to the same type as the default
                         if isinstance(value, bool):
                             cfg[key] = env_val.lower() in ["true", "1", "yes"]
                         elif isinstance(value, int):
@@ -44,7 +46,7 @@ class ConfigParser:
 
         return override(config)
 
-    def get(self, key, default=None):
+    def get(self, key: str, default: Any = None) -> Any:
         """Retrieve a configuration value using dot notation (e.g., 'db.path')."""
         keys = key.split(".")
         cfg = self.config
@@ -55,10 +57,10 @@ class ConfigParser:
                 return default
         return cfg
 
-    def as_dict(self):
+    def as_dict(self) -> Any:
         return self.config
 
-# For debugging or testing, you can add:
+# For debugging or testing
 if __name__ == "__main__":
     parser = ConfigParser()
     print(parser.as_dict())

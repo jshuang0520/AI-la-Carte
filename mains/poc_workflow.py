@@ -1,13 +1,18 @@
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.config_parser import ConfigParser
+# Insert the project root into sys.path.
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+# Now import ConfigParser from src/config_parser.py
+from src.config.config_parser import ConfigParser
 
 
 def main():
     # Load the unified configuration from config.yaml
-    config = ConfigParser("config.yaml")
+    config = ConfigParser("config/config.yaml")
 
     # Access various configuration values using dot notation
     environment = config.get("environment")
