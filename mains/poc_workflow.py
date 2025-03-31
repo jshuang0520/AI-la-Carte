@@ -1,6 +1,5 @@
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd
 
@@ -10,7 +9,18 @@ from src.user_preferences.user_preferences import UserPreferences
 from src.logger import Logger
 from src.translate_helper import TranslateHelper
 from src.rag_helper import RAGHelper
+from src.rag_helper.langchain import LangChainRAGHelper
 from typing import Dict, Any, List
+
+# Config.
+config = {
+    "LangChainRAGHelper": {
+        "openai_api_key": "",
+        "model_name": "gpt-4o-mini",
+        "persist_directory": "chroma_data",
+        "temperature": 0.0,
+    },
+}
 
 class WorkflowInterface:
     """
@@ -40,17 +50,11 @@ class WorkflowInterface:
             translated_preferences = self.translate_helper.translate_to_english(user_preferences)
             print(f"\nTranslated preferences: {translated_preferences}")
             
-            # Step 3: Form RAG prompt
-            self.logger.info("Forming RAG prompt...")
-            prompt = self.rag_helper.create_prompt_template(translated_preferences)
-            print(f"\nGenerated prompt: {prompt}")
-            
-
-            # Step 4: Get recommendations using filter helper
-            recommended_stores = self.filter_helper.get_recommendations(
-                user_preferences
-            )
-            print(f"\nRecommended stores:\n {recommended_stores}")
+            # Step 3: Run inference.
+            self.logger.info("Running infernce")
+            inference= LangChainRAGHelper(**config["LangChainRAGHelper"])
+            raw_reference = inference.run_inference(user_preferences)
+            print(f"\n Raw reference: {raw_reference}")
             
             # The following steps are commented out for now as we're testing only the first half
             """            
