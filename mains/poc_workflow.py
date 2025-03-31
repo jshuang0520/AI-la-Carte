@@ -1,51 +1,75 @@
 import sys
 import os
 
-# Insert the project root into sys.path.
+# Insert the project root into sys.path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-# Now import ConfigParser from src/config_parser.py
 from src.config.config_parser import ConfigParser
 
+def prompt_user(questions: dict, valid_options: dict) -> dict:
+    """
+    Prompt the user for each question.
+    For questions with valid_options, display numbered choices.
+    If the user's input contains a comma, process it as multiple selections.
+    Otherwise, treat it as a single selection.
+    """
+    responses = {}
+    for key, question in questions.items():
+        options = valid_options.get(key)
+        if options is not None and isinstance(options, list) and len(options) > 0:
+            print("\n" + question)
+            for idx, option in enumerate(options, 1):
+                print(f"{idx}. {option}")
+            while True:
+                user_input = input("Enter your choice number (or for multiple selections, comma separated): ").strip()
+                try:
+                    if ',' in user_input:
+                        # Process multiple selections
+                        selections = [s.strip() for s in user_input.split(",") if s.strip()]
+                        chosen = []
+                        for s in selections:
+                            if not s.isdigit():
+                                raise ValueError("Each selection must be a number.")
+                            idx_choice = int(s)
+                            if idx_choice < 1 or idx_choice > len(options):
+                                raise ValueError("Choice out of range.")
+                            chosen.append(options[idx_choice - 1])
+                        responses[key] = chosen
+                    else:
+                        # Process single selection
+                        if not user_input.isdigit():
+                            raise ValueError("Input must be a number.")
+                        idx_choice = int(user_input)
+                        if idx_choice < 1 or idx_choice > len(options):
+                            raise ValueError("Choice out of range.")
+                        responses[key] = options[idx_choice - 1]
+                    break
+                except ValueError as e:
+                    print("Invalid input:", e, "Please try again.")
+        else:
+            # If no valid options defined, accept free text.
+            responses[key] = input(question).strip()
+    return responses
 
 def main():
-    # Load the unified configuration from config.yaml
-    config = ConfigParser("config/config.yaml")
-
-    # Access various configuration values using dot notation
-    environment = config.get("environment")
-    db_path = config.get("db.path")
-    log_level = config.get("log_level")
+    # Load configuration (config file is located at config/config.yaml)
+    config = ConfigParser()
+    print("Configuration loaded.\n")
     
-    # Example: Print application settings
-    print("Application Environment:", environment)
-    print("Database Path:", db_path)
-    print("Log Level:", log_level)
-    
-    # Access language settings
-    default_language = config.get("languages.default")
-    supported_languages = config.get("languages.supported")
-    print("Default Language:", default_language)
-    print("Supported Languages:", supported_languages)
-    
-    # Access user preferences questions and defaults
-    user_pref_keys = config.get("user_preferences.keys")
+    # Retrieve user preferences questions and valid options from the config.
     user_pref_questions = config.get("user_preferences.questions")
-    user_pref_defaults = config.get("user_preferences.defaults")
+    user_pref_valid_options = config.get("user_preferences.valid_options", {})
     
-    print("\nUser Preferences Keys:")
-    print(user_pref_keys)
-    print("\nUser Preferences Questions:")
-    for key, question in user_pref_questions.items():
-        print(f"{key}: {question}")
-    print("\nUser Preferences Defaults:")
-    print(user_pref_defaults)
+    print("Please answer the following questions:")
+    user_responses = prompt_user(user_pref_questions, user_pref_valid_options)
     
-    # Here, you would implement the rest of your workflow logic.
-    # For example, prompting the user with questions and processing responses.
-    # (This is just a proof-of-concept to show how to access the configuration values.)
-
+    print("\nUser Responses:")
+    for key, answer in user_responses.items():
+        print(f"{key}: {answer}")
+    
+    # Continue with further workflow logic using user_responses if needed.
+    
 if __name__ == "__main__":
     main()
