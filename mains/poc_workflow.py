@@ -1,4 +1,9 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from src.config_parser import ConfigParser
+
 
 def main():
     # Load the unified configuration from config.yaml

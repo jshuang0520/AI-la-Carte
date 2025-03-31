@@ -1,6 +1,8 @@
 import os
 import yaml
 from dotenv import load_dotenv
+from typing import Dict, Any, List, Optional
+from src.logger import Logger
 
 class ConfigParser:
     def __init__(self, config_file="config.yaml"):

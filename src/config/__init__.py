@@ -3,7 +3,6 @@ Configuration package for the application.
 Contains user preferences and other configuration settings.
 """
 
-from .base_config import Config
-from .user_preferences_config import UserPreferencesConfig
+from .config_parser import ConfigParser
 
-__all__ = ['Config', 'UserPreferencesConfig'] 
+__all__ = ['ConfigParser'] 
