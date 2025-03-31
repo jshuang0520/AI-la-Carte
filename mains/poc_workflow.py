@@ -1,75 +1,41 @@
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from src.interface_helper import InterfaceHelper
-from src.filter_helper import FilterHelper
-from src.user_preferences.user_preferences import UserPreferences
-from src.logger import Logger
-from src.translate_helper import TranslateHelper
-from src.rag_helper import RAGHelper
-from typing import Dict, Any, List
-
-class WorkflowInterface:
-    """
-    Main workflow interface that coordinates the recommendation process.
-    Currently testing user data collection, translation, and prompt formation.
-    """
-    def __init__(self):
-        self.interface_helper = InterfaceHelper()
-        self.user_preferences = UserPreferences()
-        self.translate_helper = TranslateHelper()
-        self.rag_helper = RAGHelper()
-        self.logger = Logger()
-
-    def run_workflow(self):
-        """
-        Test workflow for user data collection and prompt formation
-        """
-        try:
-            # Step 1: Collect and validate user preferences
-            self.logger.info("Collecting user preferences...")
-            user_preferences = self.user_preferences.collect_preferences()
-            print(f"\nCollected preferences: {user_preferences}")
-            
-            # Step 2: Translate preferences if needed
-            self.logger.info("Translating preferences...")
-            translated_preferences = self.translate_helper.translate_to_english(user_preferences)
-            print(f"\nTranslated preferences: {translated_preferences}")
-            
-            # Step 3: Form RAG prompt
-            self.logger.info("Forming RAG prompt...")
-            prompt = self.rag_helper.create_prompt_template(translated_preferences)
-            print(f"\nGenerated prompt: {prompt}")
-            
-            # The following steps are commented out for now as we're testing only the first half
-            """
-            # Step 4: Get recommendations using filter helper
-            recommended_stores = self.filter_helper.get_recommendations(
-                user_preferences
-            )
-            
-            # Step 5: Display results in user's preferred language
-            self.interface_helper.display_results(
-                recommended_stores,
-                user_preferences['language']
-            )
-            """
-            
-        except Exception as e:
-            self.logger.error(f"Workflow error: {str(e)}")
-            raise
+from src.config_parser import ConfigParser
 
 def main():
-    """
-    Main entry point for the application
-    """
-    try:
-        workflow = WorkflowInterface()
-        workflow.run_workflow()
-    except Exception as e:
-        print(f"Error in main execution: {str(e)}")
-        raise
+    # Load the unified configuration from config.yaml
+    config = ConfigParser("config.yaml")
+
+    # Access various configuration values using dot notation
+    environment = config.get("environment")
+    db_path = config.get("db.path")
+    log_level = config.get("log_level")
+    
+    # Example: Print application settings
+    print("Application Environment:", environment)
+    print("Database Path:", db_path)
+    print("Log Level:", log_level)
+    
+    # Access language settings
+    default_language = config.get("languages.default")
+    supported_languages = config.get("languages.supported")
+    print("Default Language:", default_language)
+    print("Supported Languages:", supported_languages)
+    
+    # Access user preferences questions and defaults
+    user_pref_keys = config.get("user_preferences.keys")
+    user_pref_questions = config.get("user_preferences.questions")
+    user_pref_defaults = config.get("user_preferences.defaults")
+    
+    print("\nUser Preferences Keys:")
+    print(user_pref_keys)
+    print("\nUser Preferences Questions:")
+    for key, question in user_pref_questions.items():
+        print(f"{key}: {question}")
+    print("\nUser Preferences Defaults:")
+    print(user_pref_defaults)
+    
+    # Here, you would implement the rest of your workflow logic.
+    # For example, prompting the user with questions and processing responses.
+    # (This is just a proof-of-concept to show how to access the configuration values.)
 
 if __name__ == "__main__":
     main()
