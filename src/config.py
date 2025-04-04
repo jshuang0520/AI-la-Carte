@@ -274,3 +274,17 @@ class Config:
     def get_validation_options(self, field: str) -> List[str]:
         """Get validation options for a specific field"""
         return self.get_nested('user_preferences', 'validation', field, 'valid_options', default=[]) 
+    
+
+{
+    'environment': 'development',
+    'db':
+    {
+        'path': 'data/database.db'
+        },
+    'distance':
+    {'max_threshold': 10.0,
+     'min_value': 0.0,
+     'unit': 'mile'
+     }
+}

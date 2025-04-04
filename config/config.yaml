@@ -3,145 +3,150 @@
 # -------------------------------
 # Application Environment
 # -------------------------------
-environment: development  # Change to 'production' for production environment
+  environment: development  # Change to 'production' for production environment
 
-# -------------------------------
-# Database Configuration
-# -------------------------------
-db:
-  path: data/database.db
-
-# -------------------------------
-# Language Settings
-# -------------------------------
-languages:
-  supported: [en, es]
-  default: en
-
-# -------------------------------
-# Distance Settings
-# -------------------------------
-distance:
-  max_threshold: 10.0
-  min_value: 0.0
-  unit: mile
-
-# -------------------------------
-# Time Settings
-# -------------------------------
-time:
-  periods: [morning, afternoon, evening, night]
-  period_ranges:
-    morning:
-      start: "06:00"
-      end: "11:59"
-    afternoon:
-      start: "12:00"
-      end: "16:59"
-    evening:
-      start: "17:00"
-      end: "20:59"
-    night:
-      start: "21:00"
-      end: "23:59"
-  days_ahead: 7
-  format:
-    date: "%b %d"
-    time: "%H:%M"
-
-# -------------------------------
-# Logging
-# -------------------------------
-log_level: INFO
-
-# -------------------------------
-# User Preferences Configuration
-# This section is used for interactive user prompts.
-# -------------------------------
-user_preferences:
-  # Keys used in the application (these keys will be used when parsing user responses)
-  keys:
-    language: language
-    address: address
-    pickup_day: pickup_day
-    pickup_time: pickup_time
-    transportation: transportation
-    health_dietary: health_dietary
-    religious_dietary: religious_dietary
-    kitchen_access: kitchen_access
-    services: services
-    proxy_pickup: proxy_pickup
-    max_distance: max_distance
-
-  # Questions to ask the user in interactive mode
-  questions:
-    language: "Which language would you prefer to use? (en/es): "
-    address: "Please share your address or location: "
-    pickup_day: "Would you like to get food today or another day this week?"
-    pickup_time: "What time of day would you like to pick up food?"
-    transportation: "Are you able to travel to a food pantry using a private vehicle or public transit?"
-    health_dietary: "Do you have any dietary restrictions or diet-related illness? (e.g., Diabetic Meal, Low Sodium/Hypertension Meal, etc.)"
-    religious_dietary: "Do you have any dietary restrictions due to religious or cultural reasons? (e.g., Halal, Kosher, Vegetarian, etc.)"
-    kitchen_access: "Do you have access to a kitchen to store and/or cook food?"
-    services: "Do you also need any of these other services? (Select all that apply)"
-    proxy_pickup: "Can a relative or friend travel to a pantry for you?"
-    max_distance: "What is the maximum distance you can travel to get food? (in miles): "
-
-  # Valid options for multiple-choice questions
-  valid_options:
-    language: ["en", "es", "zh", "ar", "vi", "am"]
-    address: null
-    pickup_day: ["today", "tomorrow", "this_week"]
-    pickup_time: ["morning", "afternoon", "evening"]
-    transportation: ["yes", "no"]
-    health_dietary:
-      - "Diabetic Meal"
-      - "Low Sodium / Hypertension Meal"
-      - "Low Sugar Meal"
-      - "Low Fat / Cardiac Meal"
-      - "Renal/Kidney-Friendly Meal"
-      - "Gluten-Free/Intolerant Meal"
-      - "All-Produce/Fruit & Vegetable Meal"
-      - "Dietary/Pathological Meal"
-    religious_dietary:
-      - "Halal Meal"
-      - "Kosher Meal"
-      - "Hindu Meal"
-      - "Non-Beef Meal"
-      - "Non-Pork Meal"
-      - "Vegetarian Meal"
-      - "Vegetarian Lacto-Ovo Meal"
-      - "Vegetarian Vegan Meal"
-      - "Raw Vegetarian Meal"
-      - "Vegetarian Indian Meal"
-      - "Vegetarian Oriental Meal"
-      - "Vegetarian Jain Meal"
-    kitchen_access:
-      - "Yes, so I can take raw food or tins"
-      - "No, so I need Prepared meals"
-    services:
-      - "Housing"
-      - "Government benefits"
-      - "Financial assistance"
-      - "Services for older adults"
-      - "Behavioral health"
-      - "Health care"
-      - "Child care"
-      - "English language classes"
-      - "Job training"
-    proxy_pickup: ["yes", "no"]
-    max_distance: null
-
-  # Default values for development mode
-  defaults:
-    language: "en"
-    address: "5702 Vassar Drive, College Park, Maryland, 20740"
-    pickup_day: null
-    pickup_time: null
-    transportation: null
-    health_dietary: null
-    religious_dietary: null
-    kitchen_access: null
-    services: null
-    proxy_pickup: null
-    max_distance: 6
+  # -------------------------------
+  # Database Configuration
+  # -------------------------------
+  db:
+    path: data/database.db
+  
+  # -------------------------------
+  # Language Settings
+  # -------------------------------
+  languages:
+    supported: [en, es]
+    default: en
+  
+  # -------------------------------
+  # Distance Settings
+  # -------------------------------
+  distance:
+    max_threshold: 10.0
+    min_value: 0.0
+    unit: mile
+  
+  # -------------------------------
+  # Time Settings
+  # -------------------------------
+  time:
+    periods: [morning, afternoon, evening, night]
+    period_ranges:
+      morning:
+        start: "06:00"
+        end: "11:59"
+      afternoon:
+        start: "12:00"
+        end: "16:59"
+      evening:
+        start: "17:00"
+        end: "20:59"
+      night:
+        start: "21:00"
+        end: "23:59"
+    days_ahead: 7
+    format:
+      date: "%b %d"
+      time: "%H:%M"
+  
+  # -------------------------------
+  # Logging
+  # -------------------------------
+  log_level: INFO
+  
+  # -------------------------------
+  # User Preferences Configuration
+  # This section is used for interactive user prompts.
+  # -------------------------------
+  user_preferences:
+    # Keys used in the application (these keys will be used when parsing user responses)
+    keys:
+      language: language
+      address: address
+      pickup_day: pickup_day
+      pickup_time: pickup_time
+      transportation: transportation
+      health_dietary: health_dietary
+      religious_dietary: religious_dietary
+      kitchen_access: kitchen_access
+      services: services
+      proxy_pickup: proxy_pickup
+      max_distance: max_distance
+  
+    # Questions to ask the user in interactive mode
+    questions:
+      language: "Which language would you prefer to use? (en/es): "
+      address: "Please share your address or location: "
+      pickup_day: "Would you like to get food today or another day this week? (today/tomorrow/this_week): "
+      pickup_time: "Please select your preferred pickup time from the available slots:"
+      transportation: "Are you able to travel to a food pantry using a private vehicle or public transit? (yes/no): "
+      health_dietary: "Do you have any dietary restrictions or diet-related illness? (e.g., Diabetic Meal, Low Sodium/Hypertension Meal, etc.): "
+      religious_dietary: "Do you have any dietary restrictions due to religious or cultural reasons? (e.g., Halal Meal, Kosher Meal, Vegetarian Meal, etc.): "
+      kitchen_access: "Do you have access to a kitchen to store and/or cook food? (Yes, so I can take raw food or tins / No, so I need Prepared meals): "
+      services: "Do you also need any of these other services? (Select all that apply)"
+      proxy_pickup: "Can a relative or friend travel to a pantry for you? (yes/no): "
+      max_distance: "What is the maximum distance you can travel to get food? (in miles): "
+  
+    # Valid options for multiple-choice questions
+    valid_options:
+      language: ["en", "es", "zh", "ar", "vi", "am"]
+      pickup_day: ["today", "tomorrow", "this_week"]
+      # Note: For pickup_time, valid options will be generated dynamically from current time.
+      transportation: ["yes", "no"]
+      health_dietary: [
+        "Diabetic Meal", 
+        "Low Sodium / Hypertension Meal", 
+        "Low Sugar Meal", 
+        "Low Fat / Cardiac Meal", 
+        "Renal/Kidney-Friendly Meal", 
+        "Gluten-Free/Intolerant Meal", 
+        "All-Produce/Fruit & Vegetable Meal", 
+        "Dietary/Pathological Meal",
+        "Allergic to"
+      ]
+      religious_dietary: [
+        "Halal Meal", 
+        "Kosher Meal", 
+        "Hindu Meal", 
+        "Non-Beef Meal", 
+        "Non-Pork Meal", 
+        "Vegetarian Meal", 
+        "Vegetarian Lacto-Ovo Meal", 
+        "Vegetarian Vegan Meal", 
+        "Raw Vegetarian Meal", 
+        "Vegetarian Indian Meal", 
+        "Vegetarian Oriental Meal", 
+        "Vegetarian Jain Meal"
+      ]
+      kitchen_access: [
+        "Yes, so I can take raw food or tins", 
+        "No, so I need Prepared meals"
+      ]
+      services: [
+        "Housing", 
+        "Government benefits", 
+        "Financial assistance", 
+        "Services for older adults", 
+        "Behavioral health", 
+        "Health care", 
+        "Child care", 
+        "English language classes", 
+        "Job training"
+      ]
+      proxy_pickup: ["yes", "no"]
+      max_distance: null
+  
+    # Default values for development mode (not used for interactive responses)
+    defaults:
+      language: "en"
+      address: "5702 Vassar Drive, College Park, Maryland, 20740"
+      pickup_day: null
+      pickup_time: null
+      transportation: null
+      health_dietary: null
+      religious_dietary: null
+      kitchen_access: null
+      services: null
+      proxy_pickup: null
+      max_distance: 6
+  

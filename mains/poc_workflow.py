@@ -1,33 +1,55 @@
 import sys
 import os
+from datetime import datetime, timedelta
 
 # Insert the project root into sys.path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from src.config.config_parser import ConfigParser
+from src.config.config_parser import load_config
 
+def get_available_time_slots(config):
+    """
+    Generate available time slots for the next 'days_ahead' days.
+    Uses the periods and date format from the configuration.
+    """
+    days_ahead = config['time']['days_ahead']
+    periods = config['time']['periods']
+    date_format = config['time']['format']['date']
+    now = datetime.now()
+    slots = []
+    for d in range(0, days_ahead + 1):
+        day = now + timedelta(days=d)
+        day_str = day.strftime(date_format)
+        for period in periods:
+            slots.append(f"{day_str} {period}")
+    return slots
 
-def prompt_user(questions: dict, valid_options: dict) -> dict:
+def prompt_user(questions: dict, valid_options: dict, config: dict) -> dict:
     """
     Prompt the user for each question.
-    For questions with valid_options, display numbered choices.
-    If the user's input contains a comma, process it as multiple selections.
-    Otherwise, treat it as a single selection.
+    For questions with valid options, display numbered choices.
+    If the key is 'pickup_time', dynamically generate time slots.
+    For multi-select questions, allow comma-separated numbers.
     """
     responses = {}
     for key, question in questions.items():
-        options = valid_options.get(key)
-        if options is not None and isinstance(options, list) and len(options) > 0:
+        if key == "pickup_time":
+            # Dynamically generate available time slots
+            options = get_available_time_slots(config)
+        else:
+            options = valid_options.get(key)
+        
+        if options and isinstance(options, list) and len(options) > 0:
             print("\n" + question)
             for idx, option in enumerate(options, 1):
                 print(f"{idx}. {option}")
             while True:
                 user_input = input("Enter your choice number (or for multiple selections, comma separated): ").strip()
                 try:
+                    # If the input contains a comma, process multiple selections.
                     if ',' in user_input:
-                        # Process multiple selections
                         selections = [s.strip() for s in user_input.split(",") if s.strip()]
                         chosen = []
                         for s in selections:
@@ -39,7 +61,6 @@ def prompt_user(questions: dict, valid_options: dict) -> dict:
                             chosen.append(options[idx_choice - 1])
                         responses[key] = chosen
                     else:
-                        # Process single selection
                         if not user_input.isdigit():
                             raise ValueError("Input must be a number.")
                         idx_choice = int(user_input)
@@ -50,28 +71,24 @@ def prompt_user(questions: dict, valid_options: dict) -> dict:
                 except ValueError as e:
                     print("Invalid input:", e, "Please try again.")
         else:
-            # If no valid options defined, accept free text.
+            # If no valid options are defined, use free text.
             responses[key] = input(question).strip()
     return responses
 
-
 def main():
-    # Load configuration (config file is located at config/config.yaml)
-    config = ConfigParser()
+    config = load_config()
     print("Configuration loaded.\n")
     
-    # Retrieve user preferences questions and valid options from the config.
-    user_pref_questions = config.get("user_preferences.questions")
-    user_pref_valid_options = config.get("user_preferences.valid_options", {})
+    # Retrieve user preferences questions and valid options from the config
+    user_pref_questions = config['user_preferences']['questions']
+    user_pref_valid_options = config['user_preferences']['valid_options']
     
     print("Please answer the following questions:")
-    user_responses = prompt_user(user_pref_questions, user_pref_valid_options)
+    responses = prompt_user(user_pref_questions, user_pref_valid_options, config)
     
     print("\nUser Responses:")
-    for key, answer in user_responses.items():
-        print(f"{key}: {answer}")
-    
-    # Continue with further workflow logic using user_responses if needed.
-    
+    for key, value in responses.items():
+        print(f"{key}: {value}")
+
 if __name__ == "__main__":
     main()
