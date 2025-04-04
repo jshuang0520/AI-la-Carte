@@ -1,7 +1,11 @@
 import sys
 import os
 
-import pandas as pd
+# Insert the project root into sys.path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 
 from src.interface_helper import InterfaceHelper
 from src.filter_helper import FilterHelper
@@ -24,9 +28,12 @@ config = {
 
 class WorkflowInterface:
     """
-    Main workflow interface that coordinates the recommendation process.
-    Currently testing user data collection, translation, and prompt formation.
+    Prompt the user for each question.
+    For questions with valid_options, display numbered choices.
+    If the user's input contains a comma, process it as multiple selections.
+    Otherwise, treat it as a single selection.
     """
+
     def __init__(self):
         self.interface_helper = InterfaceHelper()
         self.user_preferences = UserPreferences()
@@ -69,16 +76,24 @@ class WorkflowInterface:
             self.logger.error(f"Workflow error: {str(e)}")
             raise
 
-def main():
-    """
-    Main entry point for the application
-    """
-    try:
-        workflow = WorkflowInterface()
-        workflow.run_workflow()
-    except Exception as e:
-        print(f"Error in main execution: {str(e)}")
-        raise
 
+def main():
+    # Load configuration (config file is located at config/config.yaml)
+    config = ConfigParser()
+    print("Configuration loaded.\n")
+    
+    # Retrieve user preferences questions and valid options from the config.
+    user_pref_questions = config.get("user_preferences.questions")
+    user_pref_valid_options = config.get("user_preferences.valid_options", {})
+    
+    print("Please answer the following questions:")
+    user_responses = prompt_user(user_pref_questions, user_pref_valid_options)
+    
+    print("\nUser Responses:")
+    for key, answer in user_responses.items():
+        print(f"{key}: {answer}")
+    
+    # Continue with further workflow logic using user_responses if needed.
+    
 if __name__ == "__main__":
     main()
