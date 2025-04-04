@@ -3,6 +3,9 @@ Configuration package for the application.
 Contains user preferences and other configuration settings.
 """
 
-from .config_parser import ConfigParser
+# from .config_parser import ConfigParser
 
-__all__ = ['ConfigParser'] 
+# __all__ = ['ConfigParser'] 
+
+
+from .config_parser import load_config

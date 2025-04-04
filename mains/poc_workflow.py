@@ -7,7 +7,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from src.config.config_parser import load_config
+from src.config import load_config  # Import load_config from src/config/__init__.py
 
 def get_available_time_slots(config):
     """
@@ -36,7 +36,6 @@ def prompt_user(questions: dict, valid_options: dict, config: dict) -> dict:
     responses = {}
     for key, question in questions.items():
         if key == "pickup_time":
-            # Dynamically generate available time slots
             options = get_available_time_slots(config)
         else:
             options = valid_options.get(key)
@@ -48,7 +47,6 @@ def prompt_user(questions: dict, valid_options: dict, config: dict) -> dict:
             while True:
                 user_input = input("Enter your choice number (or for multiple selections, comma separated): ").strip()
                 try:
-                    # If the input contains a comma, process multiple selections.
                     if ',' in user_input:
                         selections = [s.strip() for s in user_input.split(",") if s.strip()]
                         chosen = []
@@ -71,15 +69,13 @@ def prompt_user(questions: dict, valid_options: dict, config: dict) -> dict:
                 except ValueError as e:
                     print("Invalid input:", e, "Please try again.")
         else:
-            # If no valid options are defined, use free text.
             responses[key] = input(question).strip()
     return responses
 
 def main():
-    config = load_config()
+    config = load_config()  # Loads config/config.yaml into a dictionary.
     print("Configuration loaded.\n")
     
-    # Retrieve user preferences questions and valid options from the config
     user_pref_questions = config['user_preferences']['questions']
     user_pref_valid_options = config['user_preferences']['valid_options']
     
