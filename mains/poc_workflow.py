@@ -6,53 +6,75 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from src.config.config_parser import ConfigParser
 
+from src.interface_helper import InterfaceHelper
+from src.filter_helper import FilterHelper
+from src.user_preferences.user_preferences import UserPreferences
+from src.logger import Logger
+from src.translate_helper import TranslateHelper
+from src.rag_helper import RAGHelper
+from src.rag_helper.langchain import LangChainRAGHelper
+from typing import Dict, Any, List
 
-def prompt_user(questions: dict, valid_options: dict) -> dict:
+# Config.
+config = {
+    "LangChainRAGHelper": {
+        "openai_api_key": "",
+        "model_name": "gpt-4o-mini",
+        "persist_directory": "chroma_data",
+        "temperature": 0.0,
+    },
+}
+
+class WorkflowInterface:
     """
     Prompt the user for each question.
     For questions with valid_options, display numbered choices.
     If the user's input contains a comma, process it as multiple selections.
     Otherwise, treat it as a single selection.
     """
-    responses = {}
-    for key, question in questions.items():
-        options = valid_options.get(key)
-        if options is not None and isinstance(options, list) and len(options) > 0:
-            print("\n" + question)
-            for idx, option in enumerate(options, 1):
-                print(f"{idx}. {option}")
-            while True:
-                user_input = input("Enter your choice number (or for multiple selections, comma separated): ").strip()
-                try:
-                    if ',' in user_input:
-                        # Process multiple selections
-                        selections = [s.strip() for s in user_input.split(",") if s.strip()]
-                        chosen = []
-                        for s in selections:
-                            if not s.isdigit():
-                                raise ValueError("Each selection must be a number.")
-                            idx_choice = int(s)
-                            if idx_choice < 1 or idx_choice > len(options):
-                                raise ValueError("Choice out of range.")
-                            chosen.append(options[idx_choice - 1])
-                        responses[key] = chosen
-                    else:
-                        # Process single selection
-                        if not user_input.isdigit():
-                            raise ValueError("Input must be a number.")
-                        idx_choice = int(user_input)
-                        if idx_choice < 1 or idx_choice > len(options):
-                            raise ValueError("Choice out of range.")
-                        responses[key] = options[idx_choice - 1]
-                    break
-                except ValueError as e:
-                    print("Invalid input:", e, "Please try again.")
-        else:
-            # If no valid options defined, accept free text.
-            responses[key] = input(question).strip()
-    return responses
+
+    def __init__(self):
+        self.interface_helper = InterfaceHelper()
+        self.user_preferences = UserPreferences()
+        self.translate_helper = TranslateHelper()
+        self.filter_helper = FilterHelper() 
+        self.rag_helper = RAGHelper()
+        self.logger = Logger()
+
+    def run_workflow(self):
+        """
+        Test workflow for user data collection and prompt formation
+        """
+        try:
+            # Step 1: Collect and validate user preferences
+            self.logger.info("Collecting user preferences...")
+            user_preferences = self.user_preferences.collect_preferences()
+            print(f"\nCollected preferences: {user_preferences}")
+            
+            # Step 2: Translate preferences if needed
+            self.logger.info("Translating preferences...")
+            translated_preferences = self.translate_helper.translate_to_english(user_preferences)
+            print(f"\nTranslated preferences: {translated_preferences}")
+            
+            # Step 3: Run inference.
+            self.logger.info("Running infernce")
+            inference= LangChainRAGHelper(**config["LangChainRAGHelper"])
+            raw_reference = inference.run_inference(user_preferences)
+            print(f"\n Raw reference: {raw_reference}")
+            
+            # The following steps are commented out for now as we're testing only the first half
+            """            
+            # Step 5: Display results in user's preferred language
+            self.interface_helper.display_results(
+                recommended_stores,
+                user_preferences['language']
+            )
+            """
+            
+        except Exception as e:
+            self.logger.error(f"Workflow error: {str(e)}")
+            raise
 
 
 def main():
