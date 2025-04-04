@@ -1,6 +1,11 @@
 import sys
 import os
 from datetime import datetime, timedelta
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Insert the project root into sys.path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -61,9 +66,12 @@ def prompt_user(questions: dict, valid_options: dict, config: dict) -> dict:
     """
     Prompt the user for each question.
     For questions with valid options, display numbered choices.
-    If the key is 'pickup_time', generate time slots based on the user's answer to 'pickup_day'.
+    If the key is 'pickup_time', generate time slots based on the user's
+    answer to 'pickup_day'.
     For multi-select questions, allow comma-separated numbers.
-    If an option has follow-up questions, prompt for them and store their answers in a flattened structure.
+    If an option has follow-up questions, prompt for them and store their answers.
+    The questions and options are shown using print(), while the final responses
+    (including follow-ups) are collected into a dictionary.
     """
     responses = {}
     follow_ups = {}  # To collect follow-up responses.
@@ -79,8 +87,9 @@ def prompt_user(questions: dict, valid_options: dict, config: dict) -> dict:
         else:
             options = valid_options.get(key)
         
+        # Show the question and its options using print.
+        print("\n" + question)
         if options and isinstance(options, list) and len(options) > 0:
-            print("\n" + question)
             # Prepare display options: if an option is a dict, display its 'option' field; otherwise, the string.
             display_options = []
             for item in options:
@@ -90,6 +99,7 @@ def prompt_user(questions: dict, valid_options: dict, config: dict) -> dict:
                     display_options.append(item)
             for idx, option in enumerate(display_options, 1):
                 print(f"{idx}. {option}")
+            
             while True:
                 user_input = input("Enter your choice number (or for multiple selections, comma separated): ").strip()
                 try:
@@ -134,7 +144,8 @@ def prompt_user(questions: dict, valid_options: dict, config: dict) -> dict:
                 except ValueError as e:
                     print("Invalid input:", e, "Please try again.")
         else:
-            responses[key] = input(question).strip()
+            # For free text responses, simply call input() without reprinting the question.
+            responses[key] = input().strip()
     if follow_ups:
         responses["follow_ups"] = follow_ups
     return responses
@@ -149,9 +160,8 @@ def main():
     print("Please answer the following questions:")
     responses = prompt_user(user_pref_questions, user_pref_valid_options, config)
     
-    print("\nUser Responses:")
-    for key, value in responses.items():
-        print(f"{key}: {value}")
+    logger.info("User Responses: %s", responses)
+    return responses
 
 if __name__ == "__main__":
     main()
