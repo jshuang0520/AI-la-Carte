@@ -2,6 +2,13 @@ import sys
 import os
 from datetime import datetime, timedelta
 
+# Insert the project root into sys.path.
+# File is at: AI-la-Carte/src/user_preferences/user_preferences.py,
+# so project root is two levels up.
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 from src.config import load_config  # simple YAML loader
 
 def get_available_time_slots(config):
@@ -43,7 +50,8 @@ def get_time_slots_for_day(config, day_choice: str):
 def prompt_follow_up(follow_up_questions: list):
     """
     Prompt the user with follow-up questions.
-    If there’s exactly one question, return its answer as a string; else return a list.
+    If there's exactly one question, return the answer as a string.
+    Otherwise, return a list of answers.
     """
     answers = []
     for q in follow_up_questions:
@@ -53,16 +61,20 @@ def prompt_follow_up(follow_up_questions: list):
 
 def prompt_user(questions: dict, valid_options: dict, config: dict) -> dict:
     """
-    For each question in questions, display the question and its options (if defined) using print().
-    Accept user input (allowing single or comma-separated numbers for multiple selections).
-    If an option is defined as a dict with a "follow_up" field, prompt the corresponding follow-up questions.
-    Returns a dictionary with the collected responses (including a "follow_ups" key if any).
+    Prompt the user for each question.
+    For questions with valid options, display numbered choices.
+    If the key is 'pickup_time', generate time slots based on the user's
+    answer to 'pickup_day'.
+    For multi-select questions, allow comma-separated numbers.
+    If an option has follow-up questions, prompt for them and store their answers.
+    The questions and options are shown using print(), while the final responses
+    (including follow-ups) are collected into a dictionary.
     """
     responses = {}
-    follow_ups = {}
+    follow_ups = {}  # To collect follow-up responses.
     
     for key, question in questions.items():
-        # For the special case of pickup_time, generate options based on the previously answered pickup_day.
+        # Special handling for pickup_time based on pickup_day answer.
         if key == "pickup_time":
             pickup_day_answer = responses.get("pickup_day", None)
             if pickup_day_answer in ("today", "tomorrow"):
@@ -72,16 +84,21 @@ def prompt_user(questions: dict, valid_options: dict, config: dict) -> dict:
         else:
             options = valid_options.get(key)
         
-        # Print the question once.
+        # Show the question and its options using print.
         print("\n" + question)
         if options and isinstance(options, list) and len(options) > 0:
-            # Build display options (if option is a dict, use its 'option' field).
-            display_options = [item.get("option") if isinstance(item, dict) else item for item in options]
-            for idx, opt in enumerate(display_options, 1):
-                print(f"{idx}. {opt}")
+            # Prepare display options: if an option is a dict, display its 'option' field; otherwise, the string.
+            display_options = []
+            for item in options:
+                if isinstance(item, dict):
+                    display_options.append(item.get("option"))
+                else:
+                    display_options.append(item)
+            for idx, option in enumerate(display_options, 1):
+                print(f"{idx}. {option}")
             
             while True:
-                user_input = input("Enter your choice number (or comma separated for multiple): ").strip()
+                user_input = input("Enter your choice number (or for multiple selections, comma separated): ").strip()
                 try:
                     if ',' in user_input:
                         selections = [s.strip() for s in user_input.split(",") if s.strip()]
@@ -124,7 +141,7 @@ def prompt_user(questions: dict, valid_options: dict, config: dict) -> dict:
                 except ValueError as e:
                     print("Invalid input:", e, "Please try again.")
         else:
-            # If there are no defined options, do not reprint the question; just call input().
+            # If no valid options defined, accept free text.
             responses[key] = input().strip()
     if follow_ups:
         responses["follow_ups"] = follow_ups
