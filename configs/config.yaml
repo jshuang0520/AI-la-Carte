@@ -90,6 +90,7 @@ user_preferences:
     pickup_day: ["today", "tomorrow", "this_week"]
     transportation: ["yes", "no"]
     health_dietary:
+      - "None"
       - "Diabetic Meal"
       - "Low Sodium / Hypertension Meal"
       - "Low Sugar Meal"
@@ -102,7 +103,13 @@ user_preferences:
         option: "Allergic to"
         follow_up:
           - "Please specify what food you are allergic to: "
+      - 
+        option: "Other"
+        follow_up:
+          - "Please specify what is your health dietary: "
+
     religious_dietary:
+      - "None"
       - "Halal Meal"
       - "Kosher Meal"
       - "Hindu Meal"
@@ -115,6 +122,10 @@ user_preferences:
       - "Vegetarian Indian Meal"
       - "Vegetarian Oriental Meal"
       - "Vegetarian Jain Meal"
+      - 
+        option: "Other"
+        follow_up:
+          - "Please specify what is your religious dietary: "
     kitchen_access:
       - "Yes, so I can take raw food or tins"
       - "No, so I need Prepared meals"
