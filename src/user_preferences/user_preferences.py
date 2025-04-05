@@ -3,19 +3,13 @@ import os
 from datetime import datetime, timedelta
 
 # Insert the project root into sys.path.
-# File is at: AI-la-Carte/src/user_preferences/user_preferences.py,
-# so project root is two levels up.
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from src.config import load_config  # simple YAML loader
+from src.utilities import load_config  # from src/utilities/__init__.py
 
 def get_available_time_slots(config):
-    """
-    Generate available time slots for the next 'days_ahead' days.
-    Returns a list of strings like "Apr 04 morning", "Apr 04 afternoon", etc.
-    """
     time_config = config.get('time', {})
     days_ahead = time_config.get('days_ahead', 7)
     periods = time_config.get('periods', ['morning', 'afternoon', 'evening', 'night'])
@@ -30,9 +24,6 @@ def get_available_time_slots(config):
     return slots
 
 def get_time_slots_for_day(config, day_choice: str):
-    """
-    Generate available time slots for a specific day (today or tomorrow).
-    """
     time_config = config.get('time', {})
     periods = time_config.get('periods', ['morning', 'afternoon', 'evening', 'night'])
     date_format = time_config.get('format', {}).get('date', "%b %d")
@@ -43,16 +34,10 @@ def get_time_slots_for_day(config, day_choice: str):
         target_day = now + timedelta(days=1)
     else:
         return get_available_time_slots(config)
-    
     day_str = target_day.strftime(date_format)
     return [f"{day_str} {period}" for period in periods]
 
 def prompt_follow_up(follow_up_questions: list):
-    """
-    Prompt the user with follow-up questions.
-    If there's exactly one question, return the answer as a string.
-    Otherwise, return a list of answers.
-    """
     answers = []
     for q in follow_up_questions:
         answer = input(q).strip()
@@ -60,21 +45,16 @@ def prompt_follow_up(follow_up_questions: list):
     return answers[0] if len(answers) == 1 else answers
 
 def prompt_user(questions: dict, valid_options: dict, config: dict) -> dict:
-    """
-    Prompt the user for each question.
-    For questions with valid options, display numbered choices.
-    If the key is 'pickup_time', generate time slots based on the user's
-    answer to 'pickup_day'.
-    For multi-select questions, allow comma-separated numbers.
-    If an option has follow-up questions, prompt for them and store their answers.
-    The questions and options are shown using print(), while the final responses
-    (including follow-ups) are collected into a dictionary.
-    """
     responses = {}
-    follow_ups = {}  # To collect follow-up responses.
+    follow_ups = {}
+    # Load order and single_choice keys from config.
+    order_keys = config['user_preferences'].get('order', {}).get('order', list(questions.keys()))
+    single_choice_keys = config['user_preferences'].get('order', {}).get('single_choice', [])
     
-    for key, question in questions.items():
-        # Special handling for pickup_time based on pickup_day answer.
+    for key in order_keys:
+        if key not in questions:
+            continue
+        question = questions[key]
         if key == "pickup_time":
             pickup_day_answer = responses.get("pickup_day", None)
             if pickup_day_answer in ("today", "tomorrow"):
@@ -84,21 +64,22 @@ def prompt_user(questions: dict, valid_options: dict, config: dict) -> dict:
         else:
             options = valid_options.get(key)
         
-        # Show the question and its options using print.
         print("\n" + question)
         if options and isinstance(options, list) and len(options) > 0:
-            # Prepare display options: if an option is a dict, display its 'option' field; otherwise, the string.
-            display_options = []
-            for item in options:
-                if isinstance(item, dict):
-                    display_options.append(item.get("option"))
-                else:
-                    display_options.append(item)
-            for idx, option in enumerate(display_options, 1):
-                print(f"{idx}. {option}")
+            display_options = [item.get("option") if isinstance(item, dict) else item for item in options]
+            for idx, opt in enumerate(display_options, 1):
+                print(f"{idx}. {opt}")
             
             while True:
-                user_input = input("Enter your choice number (or for multiple selections, comma separated): ").strip()
+                if key in single_choice_keys:
+                    prompt_text = "Enter your choice number (single choice only): "
+                else:
+                    prompt_text = "Enter your choice number (or comma separated for multiple): "
+                user_input = input(prompt_text).strip()
+                # Enforce single choice if the key is in single_choice_keys.
+                if key in single_choice_keys and ',' in user_input:
+                    print("Please select only one option for this question.")
+                    continue
                 try:
                     if ',' in user_input:
                         selections = [s.strip() for s in user_input.split(",") if s.strip()]
@@ -141,17 +122,12 @@ def prompt_user(questions: dict, valid_options: dict, config: dict) -> dict:
                 except ValueError as e:
                     print("Invalid input:", e, "Please try again.")
         else:
-            # If no valid options defined, accept free text.
             responses[key] = input().strip()
     if follow_ups:
         responses["follow_ups"] = follow_ups
     return responses
 
 def get_user_preferences():
-    """
-    Load the configuration, then prompt the user using the questions and valid options from the config.
-    Returns the collected responses dictionary.
-    """
     config = load_config()
     user_pref_questions = config['user_preferences']['questions']
     user_pref_valid_options = config['user_preferences']['valid_options']

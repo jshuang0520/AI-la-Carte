@@ -1,6 +1,6 @@
 from typing import Dict, Any
 from src.logger import Logger
-from src.config import Config
+from src.utilities import Config
 
 class TranslateHelper:
     def __init__(self):

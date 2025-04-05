@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import numpy as np
 from src.logger import Logger
-from src.config import Config
+from src.utilities import Config
 
 class DBHelper:
     def __init__(self):
