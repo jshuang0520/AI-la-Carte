@@ -7,7 +7,6 @@ import numpy as np
 class RAGHelper:
     def __init__(self):
         self.logger = Logger()
-        self.embedding_helper = EmbeddingHelper()
         self.db_helper = DBHelper()
         self.translate_helper = TranslateHelper()
         
