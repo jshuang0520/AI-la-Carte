@@ -2,7 +2,7 @@ from typing import Any, Dict, List
 import os
 import pandas as pd
 import numpy as np
-from src.logger import Logger
+from src.utilities.logger import Logger
 from src.utilities import Config
 
 class DBHelper:

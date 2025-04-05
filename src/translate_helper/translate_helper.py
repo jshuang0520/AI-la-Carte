@@ -1,5 +1,5 @@
 from typing import Dict, Any
-from src.logger import Logger
+from src.utilities.logger import Logger
 from src.utilities import Config
 
 class TranslateHelper:

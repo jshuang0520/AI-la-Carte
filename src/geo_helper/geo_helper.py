@@ -6,7 +6,7 @@ from arcgis.geometry import Geometry
 from arcgis.features import FeatureLayer
 from geopy.distance import geodesic
 
-from src.logger import Logger
+from src.utilities.logger import Logger
 from src.db_helper import DBHelper
 
 

@@ -1,7 +1,7 @@
 from typing import Any, Dict, List
 import json
 import os
-from src.logger import Logger
+from src.utilities.logger import Logger
 
 class Utils:
     def __init__(self):

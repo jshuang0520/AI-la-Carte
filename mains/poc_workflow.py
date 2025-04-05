@@ -2,7 +2,17 @@ import sys
 import os
 import logging
 
-from src.utilities import load_config  # from src/utilities/__init__.py
+# Configure logging as needed
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Insert the project root into sys.path.
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+# Updated imports from utilities
+from src.utilities import load_config
 from src.user_preferences.user_preferences import get_user_preferences
 
 # Configure logging
