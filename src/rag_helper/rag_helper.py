@@ -1,6 +1,5 @@
 from typing import Dict, Any, List
-from src.logger import Logger
-from src.embedding_helper import EmbeddingHelper
+from src.utilities.logger import Logger
 from src.db_helper import DBHelper
 from src.translate_helper import TranslateHelper
 import numpy as np
@@ -8,7 +7,6 @@ import numpy as np
 class RAGHelper:
     def __init__(self):
         self.logger = Logger()
-        self.embedding_helper = EmbeddingHelper()
         self.db_helper = DBHelper()
         self.translate_helper = TranslateHelper()
         

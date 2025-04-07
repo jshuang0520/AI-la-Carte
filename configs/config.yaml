@@ -1,4 +1,4 @@
-# config.yaml - Unified configuration template
+# configs/config.yaml - Unified configuration template
 
 # -------------------------------
 # Application Environment
@@ -15,7 +15,7 @@ db:
 # Language Settings
 # -------------------------------
 languages:
-  supported: [en, es]
+  supported: &supported_languages ["en", "es"]  # ["en", "es", "zh", "ar", "vi", "am"]
   default: en
 
 # -------------------------------
@@ -56,10 +56,11 @@ log_level: INFO
 
 # -------------------------------
 # User Preferences Configuration
-# This section is used for interactive user prompts.
 # -------------------------------
 user_preferences:
-  # Keys used in the application (these keys will be used when parsing user responses)
+  order:
+    order: ["language", "address", "pickup_day", "pickup_time", "transportation", "health_dietary", "religious_dietary", "kitchen_access", "services", "proxy_pickup", "max_distance"]
+    single_choice: ["language", "pickup_day", "transportation", "kitchen_access", "proxy_pickup", "max_distance"]
   keys:
     language: language
     address: address
@@ -72,29 +73,24 @@ user_preferences:
     services: services
     proxy_pickup: proxy_pickup
     max_distance: max_distance
-
-  # Questions to ask the user in interactive mode
   questions:
     language: "Which language would you prefer to use? (en/es): "
     address: "Please share your address or location: "
-    pickup_day: "Would you like to get food today or another day this week?"
-    pickup_time: "What time of day would you like to pick up food?"
-    transportation: "Are you able to travel to a food pantry using a private vehicle or public transit?"
-    health_dietary: "Do you have any dietary restrictions or diet-related illness? (e.g., Diabetic Meal, Low Sodium/Hypertension Meal, etc.)"
-    religious_dietary: "Do you have any dietary restrictions due to religious or cultural reasons? (e.g., Halal, Kosher, Vegetarian, etc.)"
-    kitchen_access: "Do you have access to a kitchen to store and/or cook food?"
-    services: "Do you also need any of these other services? (Select all that apply)"
-    proxy_pickup: "Can a relative or friend travel to a pantry for you?"
+    pickup_day: "Would you like to get food today or another day this week? (today/tomorrow/this_week): "
+    pickup_time: "Please select your preferred pickup time from the available slots:"
+    transportation: "Are you able to travel to a food pantry using a private vehicle or public transit? (yes/no): "
+    health_dietary: "Do you have any dietary restrictions or diet-related illness? (e.g., Diabetic Meal, Low Sodium/Hypertension Meal, etc.): "
+    religious_dietary: "Do you have any dietary restrictions due to religious or cultural reasons? (e.g., Halal Meal, Kosher Meal, Vegetarian Meal, etc.): "
+    kitchen_access: "Do you have access to a kitchen to store and/or cook food? (Yes, so I can take raw food or tins / No, so I need Prepared meals): "
+    services: "Do you also need any of these other services? (Select all that apply): "
+    proxy_pickup: "Can a relative or friend travel to a pantry for you? (yes/no): "
     max_distance: "What is the maximum distance you can travel to get food? (in miles): "
-
-  # Valid options for multiple-choice questions
   valid_options:
-    language: ["en", "es", "zh", "ar", "vi", "am"]
-    address: null
+    language: ["en", "es"]  # ["en", "es", "zh", "ar", "vi", "am"]
     pickup_day: ["today", "tomorrow", "this_week"]
-    pickup_time: ["morning", "afternoon", "evening"]
     transportation: ["yes", "no"]
     health_dietary:
+      - "None"
       - "Diabetic Meal"
       - "Low Sodium / Hypertension Meal"
       - "Low Sugar Meal"
@@ -103,7 +99,17 @@ user_preferences:
       - "Gluten-Free/Intolerant Meal"
       - "All-Produce/Fruit & Vegetable Meal"
       - "Dietary/Pathological Meal"
+      - 
+        option: "Allergic to"
+        follow_up:
+          - "Please specify what food you are allergic to: "
+      - 
+        option: "Other"
+        follow_up:
+          - "Please specify what is your health dietary: "
+
     religious_dietary:
+      - "None"
       - "Halal Meal"
       - "Kosher Meal"
       - "Hindu Meal"
@@ -116,6 +122,10 @@ user_preferences:
       - "Vegetarian Indian Meal"
       - "Vegetarian Oriental Meal"
       - "Vegetarian Jain Meal"
+      - 
+        option: "Other"
+        follow_up:
+          - "Please specify what is your religious dietary: "
     kitchen_access:
       - "Yes, so I can take raw food or tins"
       - "No, so I need Prepared meals"
@@ -131,8 +141,6 @@ user_preferences:
       - "Job training"
     proxy_pickup: ["yes", "no"]
     max_distance: null
-
-  # Default values for development mode
   defaults:
     language: "en"
     address: "5702 Vassar Drive, College Park, Maryland, 20740"
@@ -145,3 +153,18 @@ user_preferences:
     services: null
     proxy_pickup: null
     max_distance: 6
+
+# -------------------------------
+# Hard-coded values (for keys and literals)
+# -------------------------------
+hard_coded_values:
+  PICKUP_TIME: "pickup_time"
+  PICKUP_DAY: "pickup_day"
+  TODAY: "today"
+  TOMORROW: "tomorrow"
+  THIS_WEEK: "this_week"
+  PERIODS: "periods"
+  MORNING: "morning"
+  AFTERNOON: "afternoon"
+  EVENING: "evening"
+  NIGHT: "night"

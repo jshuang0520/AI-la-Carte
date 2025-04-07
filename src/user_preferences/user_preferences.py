@@ -1,212 +1,141 @@
+import sys
 import os
 from datetime import datetime, timedelta
-from typing import Dict, Any, List
-from src.logger import Logger
-from src.translate_helper import TranslateHelper
-from src.config.user_preferences_config import UserPreferencesConfig
 
-class UserPreferences:
-    def __init__(self, env: str = 'dev'):
-        self.logger = Logger()
-        self.translate_helper = TranslateHelper()
-        self.config = UserPreferencesConfig(env=env)
-        self.preferences = {}
+# Insert the project root into sys.path.
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+from src.utilities import load_config  # from src/utilities/__init__.py
+
+def get_available_time_slots(config):
+    time_config = config.get('time', {})
+    days_ahead = time_config.get('days_ahead', 7)
+    periods = time_config.get('periods', ['morning', 'afternoon', 'evening', 'night'])
+    date_format = time_config.get('format', {}).get('date', "%b %d")
+    now = datetime.now()
+    slots = []
+    for d in range(0, days_ahead + 1):
+        day = now + timedelta(days=d)
+        day_str = day.strftime(date_format)
+        for period in periods:
+            slots.append(f"{day_str} {period}")
+    return slots
+
+def get_time_slots_for_day(config, day_choice: str):
+    time_config = config.get('time', {})
+    periods = time_config.get('periods', ['morning', 'afternoon', 'evening', 'night'])
+    date_format = time_config.get('format', {}).get('date', "%b %d")
+    now = datetime.now()
+    if day_choice == "today":
+        target_day = now
+    elif day_choice == "tomorrow":
+        target_day = now + timedelta(days=1)
+    else:
+        return get_available_time_slots(config)
+    day_str = target_day.strftime(date_format)
+    return [f"{day_str} {period}" for period in periods]
+
+def prompt_follow_up(follow_up_questions: list):
+    answers = []
+    for q in follow_up_questions:
+        answer = input(q).strip()
+        answers.append(answer)
+    return answers[0] if len(answers) == 1 else answers
+
+def prompt_user(questions: dict, valid_options: dict, config: dict) -> dict:
+    responses = {}
+    follow_ups = {}
+    # Load order and single_choice keys from config.
+    order_keys = config['user_preferences'].get('order', {}).get('order', list(questions.keys()))
+    single_choice_keys = config['user_preferences'].get('order', {}).get('single_choice', [])
+    
+    for key in order_keys:
+        if key not in questions:
+            continue
+        question = questions[key]
+        if key == "pickup_time":
+            pickup_day_answer = responses.get("pickup_day", None)
+            if pickup_day_answer in ("today", "tomorrow"):
+                options = get_time_slots_for_day(config, pickup_day_answer)
+            else:
+                options = get_available_time_slots(config)
+        else:
+            options = valid_options.get(key)
         
-    def _generate_time_slots(self) -> List[str]:
-        """Generate available time slots for the next week"""
-        try:
-            current_time = datetime.now()
-            days_ahead = self.config.config.get('time', {}).get('days_ahead', 7)
-            periods = self.config.config.get('time', {}).get('periods', ['morning', 'afternoon', 'evening', 'night'])
+        print("\n" + question)
+        if options and isinstance(options, list) and len(options) > 0:
+            display_options = [item.get("option") if isinstance(item, dict) else item for item in options]
+            for idx, opt in enumerate(display_options, 1):
+                print(f"{idx}. {opt}")
             
-            available_slots = []
-            
-            # Generate slots for the next 'days_ahead' days
-            for day_offset in range(days_ahead):
-                date = current_time.date() + timedelta(days=day_offset)
-                
-                # For current day, only show future periods
-                if day_offset == 0:
-                    for period in periods:
-                        period_start = self.config.config.get('time', {}).get('period_ranges', {}).get(period, {}).get('start', '00:00')
-                        period_time = datetime.strptime(period_start, '%H:%M').time()
-                        slot_datetime = datetime.combine(date, period_time)
-                        
-                        if slot_datetime > current_time:
-                            available_slots.append(f"{date.strftime('%Y-%m-%d')} {period}")
+            while True:
+                if key in single_choice_keys:
+                    prompt_text = "Enter your choice number (single choice only): "
                 else:
-                    # For future days, show all periods
-                    for period in periods:
-                        available_slots.append(f"{date.strftime('%Y-%m-%d')} {period}")
-            
-            return available_slots
-            
-        except Exception as e:
-            self.logger.error(f"Error generating time slots: {str(e)}")
-            return []
-            
-    def _handle_multiple_selection(self, options: List[str], category: str) -> str:
-        """Handle multiple selection from a list of options"""
-        print(f"\nAvailable {category}:")
-        for i, option in enumerate(options, 1):
-            print(f"{i}. {option}")
-        
-        print(f"\nEnter the numbers of {category} you need (comma-separated):")
-        while True:
-            try:
-                # Get input and clean it
-                raw_input = input().strip()
-                if not raw_input:
-                    self.logger.warning("Please enter at least one selection")
+                    prompt_text = "Enter your choice number (or comma separated for multiple): "
+                user_input = input(prompt_text).strip()
+                # Enforce single choice if the key is in single_choice_keys.
+                if key in single_choice_keys and ',' in user_input:
+                    print("Please select only one option for this question.")
                     continue
-                    
-                # Parse selected indices and remove duplicates using set
-                selected_indices = set(int(idx.strip()) for idx in raw_input.split(','))
-                
-                # Validate all indices are within valid range
-                if not all(1 <= idx <= len(options) for idx in selected_indices):
-                    self.logger.warning(f"Please enter numbers between 1 and {len(options)}")
-                    continue
-                
-                # Convert indices to actual options (using set to ensure uniqueness)
-                selected_options = set(options[i-1] for i in selected_indices)
-                
-                # Verify all selected options are in the valid options list
-                if not all(opt in options for opt in selected_options):
-                    self.logger.warning("Invalid selection detected. Please try again.")
-                    continue
-                
-                # Convert back to sorted list for consistent output
-                return ','.join(sorted(selected_options))
-                
-            except ValueError as e:
-                self.logger.warning("Please enter valid numbers separated by commas")
-                continue
-            except Exception as e:
-                self.logger.warning(f"Invalid selection. Please try again. Error: {str(e)}")
-                continue
-        
-    def _handle_pickup_day(self) -> str:
-        """Handle pickup day selection with follow-up questions"""
-        print("\nWould you like to get food today or another day this week?")
-        print("1. Today")
-        print("2. Tomorrow")
-        print("3. Another day this week")
-        
-        while True:
-            try:
-                selection = int(input("Enter your choice (1-3): ").strip())
-                if selection == 1:
-                    return "today"
-                elif selection == 2:
-                    return "tomorrow"
-                elif selection == 3:
-                    # Get the day of the week
-                    print("\nWhich day would you prefer?")
-                    print("1. Monday")
-                    print("2. Tuesday")
-                    print("3. Wednesday")
-                    print("4. Thursday")
-                    print("5. Friday")
-                    print("6. Saturday")
-                    print("7. Sunday")
-                    
-                    day_selection = int(input("Enter your choice (1-7): ").strip())
-                    if 1 <= day_selection <= 7:
-                        days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-                        return f"this_week_{days[day_selection-1]}"
+                try:
+                    if ',' in user_input:
+                        selections = [s.strip() for s in user_input.split(",") if s.strip()]
+                        chosen = []
+                        chosen_followups = {}
+                        for s in selections:
+                            if not s.isdigit():
+                                raise ValueError("Each selection must be a number.")
+                            idx_choice = int(s)
+                            if idx_choice < 1 or idx_choice > len(display_options):
+                                raise ValueError("Choice out of range.")
+                            selected_item = options[idx_choice - 1]
+                            if isinstance(selected_item, dict):
+                                chosen.append(selected_item.get("option"))
+                                if "follow_up" in selected_item:
+                                    print(f"\nFollow-up for option '{selected_item.get('option')}':")
+                                    follow_resp = prompt_follow_up(selected_item["follow_up"])
+                                    chosen_followups[selected_item.get("option")] = follow_resp
+                            else:
+                                chosen.append(selected_item)
+                        responses[key] = chosen
+                        if chosen_followups:
+                            follow_ups[key] = chosen_followups
                     else:
-                        self.logger.warning("Invalid day selection. Please try again.")
-                else:
-                    self.logger.warning("Invalid selection. Please enter 1, 2, or 3.")
-            except ValueError:
-                self.logger.warning("Please enter a valid number")
-                continue
-        
-    def collect_preferences(self) -> Dict[str, Any]:
-        """Collect user preferences using configuration"""
-        try:
-            # Define the order of questions
-            categories = ['language', 'address', 'pickup_day', 'pickup_time', 
-                         'transportation', 'health_dietary', 'religious_dietary',
-                         'kitchen_access', 'services', 'proxy_pickup']
-            
-            # Define which categories support multiple selections
-            multiple_selection_categories = [
-                'health_dietary', 'religious_dietary', 'services'
-            ]
-            
-            for category in categories:
-                question = self.config.get_question(category)
-                valid_options = self.config.get_valid_options(category)
-                default_value = self.config.get_default_value(category)
-                key = self.config.get_key(category)
-                
-                while True:
-                    if category == 'pickup_day':
-                        user_input = self._handle_pickup_day()
-                    elif category in multiple_selection_categories:
-                        # Handle multiple selection fields
-                        user_input = self._handle_multiple_selection(valid_options, category)
-                        if not user_input:
-                            continue
-                    else:
-                        user_input = input(question).strip()
-                    
-                    # If no input and default exists, use default
-                    if not user_input and default_value is not None:
-                        user_input = str(default_value)
-                        self.logger.info(f"Using default value for {category}: {default_value}")
-                    
-                    # Validate input if valid options exist
-                    if valid_options:
-                        if category in multiple_selection_categories:
-                            # For multiple selection fields, validate each selected option
-                            selected_options = [opt.strip() for opt in user_input.split(',')]
-                            if not all(opt in valid_options for opt in selected_options):
-                                self.logger.warning(f"Invalid selection. Valid options: {valid_options}")
-                                continue
-                        elif user_input not in valid_options:
-                            self.logger.warning(f"Invalid input for {category}. Valid options: {valid_options}")
-                            continue
-                    
-                    self.preferences[key] = user_input
-                    
-                    # Handle conditional questions
-                    if category == 'transportation' and user_input.lower() == 'no':
-                        # Skip to proxy pickup question
-                        self.preferences['proxy_pickup'] = input(self.config.get_question('proxy_pickup')).strip()
-                        break
-                    
+                        if not user_input.isdigit():
+                            raise ValueError("Input must be a number.")
+                        idx_choice = int(user_input)
+                        if idx_choice < 1 or idx_choice > len(display_options):
+                            raise ValueError("Choice out of range.")
+                        selected_item = options[idx_choice - 1]
+                        if isinstance(selected_item, dict):
+                            responses[key] = selected_item.get("option")
+                            if "follow_up" in selected_item:
+                                print(f"\nFollow-up for option '{selected_item.get('option')}':")
+                                follow_resp = prompt_follow_up(selected_item["follow_up"])
+                                follow_ups[key] = {selected_item.get("option"): follow_resp}
+                        else:
+                            responses[key] = selected_item
                     break
-                    
-            return self.preferences
-            
-        except Exception as e:
-            self.logger.error(f"Error collecting preferences: {str(e)}")
-            raise
-            
-    def verify_input(self, category: str, value: str) -> bool:
-        """Verify user input against configuration"""
-        try:
-            valid_options = self.config.get_valid_options(category)
-            
-            # If no valid options defined, accept any input
-            if valid_options is None:
-                return True
-                
-            # For multiple selection fields, validate each selected option
-            multiple_selection_categories = [
-                'health_dietary', 'religious_dietary', 'services'
-            ]
-            
-            if category in multiple_selection_categories:
-                selected_options = [opt.strip() for opt in value.split(',')]
-                return all(opt in valid_options for opt in selected_options)
-                
-            # Check if value is in valid options
-            return value in valid_options
-            
-        except Exception as e:
-            self.logger.error(f"Error verifying input: {str(e)}")
-            return False 
+                except ValueError as e:
+                    print("Invalid input:", e, "Please try again.")
+        else:
+            responses[key] = input().strip()
+    if follow_ups:
+        responses["follow_ups"] = follow_ups
+    return responses
+
+def get_user_preferences():
+    config = load_config()
+    user_pref_questions = config['user_preferences']['questions']
+    user_pref_valid_options = config['user_preferences']['valid_options']
+    print("Please answer the following questions:")
+    responses = prompt_user(user_pref_questions, user_pref_valid_options, config)
+    return responses
+
+if __name__ == "__main__":
+    prefs = get_user_preferences()
+    print("\nCollected Preferences:")
+    print(prefs)
