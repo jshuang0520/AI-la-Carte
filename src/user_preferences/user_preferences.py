@@ -128,6 +128,8 @@ def prompt_user(questions: dict, valid_options: dict, config: dict) -> dict:
     return responses
 
 def get_user_preferences():
+    # FIXME: (1)need to translate the follow-up questions and valid-options after an user specifies the language; (2) also, when collecting user's answer in the specified language, we should always trigger this function again to get the answer in English (as default)
+    # TODO: question: shall we collect the responses in both languge (the specified language, and the default one in English)?
     config = load_config()
     user_pref_questions = config['user_preferences']['questions']
     user_pref_valid_options = config['user_preferences']['valid_options']
