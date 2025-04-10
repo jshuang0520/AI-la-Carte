@@ -3,12 +3,12 @@ import os
 import pandas as pd
 import numpy as np
 from src.utilities.logger import Logger
-from src.utilities import Config
+from src.utilities.config_parser import load_config
 
 class DBHelper:
     def __init__(self):
         self.logger = Logger()
-        self.config = Config()
+        self.config = load_config()
         self.data_dir = "data"
         self.documents = {}
         self.embeddings = {}

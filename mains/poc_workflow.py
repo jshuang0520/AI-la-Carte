@@ -34,7 +34,7 @@ def filter_by_conditions(user_prefs):
 def rag_search(user_prefs, config):
     logger.info("Performing RAG search/comparison with user preferences...")
     logger.info("Running infernce...")
-    inference= LangChainRAGHelper(config["llm_config"]["LangChainRAGHelper"])
+    inference= LangChainRAGHelper(config["llm_config"]["LangChainRAGHelper"]["openai_api_key"])
     raw_reference = inference.run_inference(user_prefs)
     logger.info(f"\n Raw reference: {raw_reference}")
     return {"result": {raw_reference}}

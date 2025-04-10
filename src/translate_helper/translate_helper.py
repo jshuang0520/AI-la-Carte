@@ -1,11 +1,11 @@
 from typing import Dict, Any
 from src.utilities.logger import Logger
-from src.utilities import Config
+from src.utilities.config_parser import load_config
 
 class TranslateHelper:
     def __init__(self):
         self.logger = Logger()
-        self.config = Config()
+        self.config = load_config()
 
     def translate(self, from_lang: str, to_lang: str, content):
         """

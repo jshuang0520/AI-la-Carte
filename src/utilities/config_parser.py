@@ -2,6 +2,7 @@ import yaml
 import os
 
 def load_config(config_file="configs/config.yaml"):
+    config_file = os.path.join(os.path.dirname(__file__), "..", "..", config_file)
     with open(config_file, 'r') as stream:
         try:
             config = yaml.safe_load(stream)

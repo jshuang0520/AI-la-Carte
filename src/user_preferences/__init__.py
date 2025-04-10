@@ -1,6 +1,6 @@
 """
 User preferences module for collecting and validating user input
 """
-from .user_preferences import UserPreferences
+from .user_preferences import get_user_preferences
 
-__all__ = ['UserPreferences'] 
+__all__ = ['get_user_preferences'] 

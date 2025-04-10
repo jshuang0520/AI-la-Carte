@@ -2,7 +2,6 @@ import os
 import logging
 from typing import Dict, Any, List, Optional
 
-from src.embedding_helper import EmbeddingHelper
 from src.db_helper import DBHelper
 from src.translate_helper import TranslateHelper
 
@@ -196,10 +195,15 @@ class LangChainRAGHelper:
         """
         Match dietary restrictions to program rules.
         """
-        query_lower = query.lower()
+        query_lower = []
         matched_rules = []
+        if query["health_dietary"]:
+            query_lower.extend(query["health_dietary"])
+        if query["religious_dietary"]:
+            query_lower.extend(query["religious_dietary"])
         for rule_name, rule in self.DIETARY_RULES.items():
             if any(trigger in query_lower for trigger in rule['triggers']):
+            # if any(trigger in query for trigger in rule['triggers']):
                 matched_rules.append(rule)
         
         return matched_rules[0] if matched_rules else None

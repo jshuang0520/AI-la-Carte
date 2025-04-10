@@ -159,7 +159,7 @@ user_preferences:
 # -------------------------------
 llm_config:
   LangChainRAGHelper:
-    openai_api_key: ""
+    openai_api_key: "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"
     model_name: "gpt-4o-mini"
     persist_directory: "chroma_data"
     temperature: 0.0
