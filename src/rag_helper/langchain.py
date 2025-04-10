@@ -6,6 +6,7 @@ from src.db_helper import DBHelper
 from src.translate_helper import TranslateHelper
 
 import numpy as np
+from sqlalchemy import create_engine, text
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 from langchain_core.runnables import RunnablePassthrough
@@ -77,6 +78,11 @@ class LangChainRAGHelper:
         # Setup chain during initialization.
         self._initialize_vector_store(persist_directory)
         self._setup_qa_chain()
+        project_root = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
+        db_path = os.path.join(project_root, 'data/cafb.db')
+        self.engine = create_engine(f'sqlite:///{db_path}')
 
     def _initialize_vector_store(self, persist_directory: str):
         """

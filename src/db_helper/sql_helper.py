@@ -24,9 +24,9 @@ def excel_to_sql(dir_in_root: str) -> str:
     :return: path to the SQLite database.
     """
     # Configure paths.
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    data_dir = os.path.join(project_root, '')
-    db_path = os.path.join(project_root, 'data/cafb.db')
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    data_dir = os.path.join(project_root, 'data')
+    db_path = os.path.join(project_root, 'data', 'cafb.db')
     # Create engine.
     engine = create_engine(f'sqlite:///{db_path}')
     # Process files.
@@ -59,3 +59,5 @@ def excel_to_sql(dir_in_root: str) -> str:
     return db_path  
 
 
+if __name__ == "__main__":
+    print(excel_to_sql('data'))
