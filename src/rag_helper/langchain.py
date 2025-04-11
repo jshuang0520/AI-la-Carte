@@ -13,7 +13,7 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_core.output_parsers import StrOutputParser
-# from langchain_core.retrievers import VectorStoreRetriever
+from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_core.messages import SystemMessage
 
 _LOG = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ User Query: {input}
 class LangChainRAGHelper:
     DIETARY_RULES = {
         'produce_focused': {
-            'triggers': {'diabetic', 'hypertension', 'low sodium', 'low sugar', 'fresh produce'},
+            'triggers': {'diabetic', 'hypertension', 'low sodium', 'low sugar', 'fresh produce', 'all-produce menu'},
             'programs': ['Markets'],
             'cultures': 'All Cultural Populations'
         },
