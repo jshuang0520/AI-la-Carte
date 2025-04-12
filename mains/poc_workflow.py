@@ -17,7 +17,7 @@ from src.user_preferences.user_preferences import get_user_preferences
 from src.geo_helper.geo_helper import GeoHelper
 from src.translate_helper import TranslateHelper
 from src.rag_helper.langchain import LangChainRAGHelper
-
+from src.db_helper.db_helper import DBHelper
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -55,7 +55,8 @@ def main():
         # workflow
         user_prefs = get_user_preferences()
         filtered_prefs = filter_by_distance(user_prefs)
-        # filtered_prefs = filter_by_conditions(filtered_prefs)
+        # Initialize DBHelper with user preferences
+        db_helper = DBHelper(user_prefs)  
         results = rag_search(filtered_prefs, config=config)
         # FIXME: translate the results into the specified language
         translated_results = translate_helper.translate(

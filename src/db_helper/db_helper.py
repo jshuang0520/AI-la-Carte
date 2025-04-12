@@ -6,12 +6,13 @@ from src.utilities.logger import Logger
 from src.utilities.config_parser import load_config
 
 class DBHelper:
-    def __init__(self):
+    def __init__(self, user_prefs: Dict[str, Any] = None):
         self.logger = Logger()
         self.config = load_config()
         self.data_dir = "data"
         self.documents = {}
         self.embeddings = {}
+        self.user_prefs = user_prefs
         self._load_data()
         
     def _load_data(self):
@@ -21,12 +22,7 @@ class DBHelper:
         try:
             # Define the Excel file paths
             files = {
-                "CAFB_Markets_Cultures_Served": "CAFB_Markets_Cultures_Served.xlsx",
-                "CAFB_Markets_HOO": "CAFB_Markets_HOO.xlsx",
-                "CAFB_Markets_Wraparound_Services": "CAFB_Markets_Wraparound_Services.xlsx",
-                "CAFB_Shopping_Partners_Cultures_Served": "CAFB_Shopping_Partners_Cultures_Served.xlsx",
-                "CAFB_Shopping_Partners_HOO": "CAFB_Shopping_Partners_HOO.xlsx",
-                "CAFB_Shopping_Partners_Wraparound_Services": "CAFB_Shopping_Partners_Wraparound_Services.xlsx"
+                "CAFB_Markets_Shopping_Partners": "CAFB_Markets_Shopping_Partners.xlsx",
             }
             
             # Load each Excel file
@@ -53,83 +49,42 @@ class DBHelper:
         """
         try:
             # Process Markets data
-            markets_docs = []
+            cafb_docs = []
             
-            # Combine Markets data
-            if all(k in self.raw_data for k in ["CAFB_Markets_HOO", "CAFB_Markets_Cultures_Served", "CAFB_Markets_Wraparound_Services"]):
-                markets_hoo = self.raw_data["CAFB_Markets_HOO"]
-                markets_cultures = self.raw_data["CAFB_Markets_Cultures_Served"]
-                markets_services = self.raw_data["CAFB_Markets_Wraparound_Services"]
-                
-                # Process each market
-                for _, market in markets_hoo.iterrows():
-                    doc = {
-                        "id": market["Agency ID"],
-                        "name": market["Agency Name"],
-                        "type": "Market",
-                        "address": market["Shipping Address"],
-                        "hours": {
-                            "day": market["Day or Week"],
-                            "start": market["Starting Time"],
-                            "end": market["Ending Time"],
-                            "frequency": market["Frequency"]
-                        },
-                        "requirements": market["Food Pantry Requirements"],
-                        "format": market["Food Format "],
-                        "distribution": market["Distribution Models"],
-                        "cultures_served": markets_cultures[
-                            markets_cultures["Agency ID"] == market["Agency ID"]
-                        ]["Cultural Populations Served"].tolist(),
-                        "services": markets_services[
-                            markets_services["Agency ID"] == market["Agency ID"]
-                        ]["Wraparound Service"].tolist()
-                    }
-                    markets_docs.append(doc)
-                    
-            # Process Shopping Partners data
-            partners_docs = []
-            
-            # Combine Partners data
-            if all(k in self.raw_data for k in ["CAFB_Shopping_Partners_HOO", "CAFB_Shopping_Partners_Cultures_Served", "CAFB_Shopping_Partners_Wraparound_Services"]):
-                partners_hoo = self.raw_data["CAFB_Shopping_Partners_HOO"]
-                partners_cultures = self.raw_data["CAFB_Shopping_Partners_Cultures_Served"]
-                partners_services = self.raw_data["CAFB_Shopping_Partners_Wraparound_Services"]
-                
-                # Process each partner
-                for _, partner in partners_hoo.iterrows():
-                    doc = {
-                        "id": partner["External ID"],
-                        "name": partner["Name"],
-                        "type": "Shopping Partner",
-                        "status": partner["Status"],
-                        "region": partner["Agency Region"],
-                        "county": partner["County/Ward"],
-                        "address": partner["Shipping Address"],
-                        "phone": partner["Phone"],
-                        "hours": {
-                            "day": partner["Day or Week"],
-                            "monthly_options": partner["Monthly Options"],
-                            "start": partner["Starting Time"],
-                            "end": partner["Ending Time"],
-                            "appointment_only": partner["By Appointment Only"]
-                        },
-                        "requirements": partner["Food Pantry Requirements"],
-                        "distribution": partner["Distribution Models"],
-                        "format": partner["Food Format "],
-                        "additional_hours_info": partner["Additional Note on Hours of Operations"],
-                        "cultures_served": partners_cultures[
-                            partners_cultures["Agency ID"] == partner["External ID"]
-                        ]["Cultural Populations Served"].tolist(),
-                        "services": partners_services[
-                            partners_services["Agency ID"] == partner["External ID"]
-                        ]["Wraparound Service"].tolist()
-                    }
-                    partners_docs.append(doc)
-                    
+            # Process each market and Shopping Partner
+            markets_sp = self.raw_data.get("CAFB_Markets_Shopping_Partners", pd.DataFrame())
+            for _, market in markets_sp.iterrows():
+                doc = {
+                    "id": market["Agency ID"],
+                    "name": market["Agency Name"],
+                    "type": "Shopping Partner" if "PART" in market["Agency ID"] else "Market",
+                    "status": market["Status"],
+                    "region": market["Agency Region"],
+                    "county": market["County/Ward"],
+                    "address": market["Shipping Address"],
+                    "phone": market["Phone"],
+                    "website": market["URL"],
+                    "hours": {
+                        "day": market["Day or Week"],
+                        "start": market["Starting Time"],
+                        "end": market["Ending Time"],
+                        "frequency": market["Frequency"]
+                    },
+                    "requirements": market["Food Pantry Requirements"],
+                    "format": market["Food Format "],
+                    "choice_options": market["Choice Options"],
+                    "distribution": market["Distribution Models"],
+                    "appointment_required": market["By Appointment Only"],
+                    "additional_hours_info": market["Additional Note on Hours of Operations"],
+                    "cultures_served": market["Cultural Populations Served"].tolist(),
+                    "services": market["Wraparound Service"].tolist()
+                }
+                cafb_docs.append(doc)
+
             # Store all documents
             self.documents = {
-                "markets": markets_docs,
-                "partners": partners_docs
+                "markets": cafb_docs,
+                "geo_data": self.user_prefs.get("geo_data", [])
             }
             
         except Exception as e:

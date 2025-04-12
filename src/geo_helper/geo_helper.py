@@ -7,19 +7,21 @@ from arcgis.features import FeatureLayer
 from geopy.distance import geodesic
 
 from src.utilities.logger import Logger
-from src.db_helper import DBHelper
 
 
 class GeoHelper:
     def __init__(self):
         self.logger = Logger()
-        self.db_helper = DBHelper()
 
     def find_nearby_food_assistance(
         self,
         address: str,
         radius_miles: int = 10,
     ) -> pd.DataFrame:
+        """
+        Find nearby food assistance locations using CAFB's ArcGIS portal.
+        """
+        self.logger.info(f"Finding nearby food assistance for address: {address}")
         # Connect to CAFB's ArcGIS portal anonymously
         gis = GIS()
 
@@ -27,7 +29,7 @@ class GeoHelper:
         geocoded = geocode(address)[0]
         lat = geocoded['location']['y']
         lon = geocoded['location']['x']
-        print(f"Geocoded {address} to lat: {lat}, lon: {lon}")
+        self.logger.info(f"Geocoded {address} to lat: {lat}, lon: {lon}")
 
         # Access CAFB's food assistance layer (identified from iframe analysis)
         # layer_url = "https://services.arcgis.com/su9ryhqQb8iyeiN2/arcgis/rest/services/CAFB_Partner_Locator/FeatureServer/0"
@@ -78,9 +80,6 @@ class GeoHelper:
         final_results = []
         for feature in results:
             props = feature.attributes
-            # geom = feature.geometry
-            # print(f"Processing feature: {props}")
-            # print(f"Feature geometry: {geom}")
             geom = {
                 'x': props['longitude'],
                 'y': props['latitude']
