@@ -34,5 +34,5 @@ if __name__ == "__main__":
     str_1 = "hope home, college park, MD, 20740"
     str_2 = "hopeless home, college park, MD, 20740"
     similarity = calculate_similarity(str_1, str_2)
-    print(f"caution: similarity of {str_1} and {str_2} = {similarity}")
+    print(f"caution: similarity of '{str_1}' and '{str_2}' = {similarity}")
 
