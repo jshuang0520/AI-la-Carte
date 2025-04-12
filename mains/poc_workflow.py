@@ -16,9 +16,8 @@ if project_root not in sys.path:
 from src.utilities import load_config
 from src.user_preferences.user_preferences import get_user_preferences
 from src.geo_helper.geo_helper import GeoHelper
-from src.translate_helper import TranslateHelper
 from src.rag_helper.langchain import LangChainRAGHelper
-from src.db_helper.db_helper import DBHelper
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -37,14 +36,12 @@ def filter_by_distance(
         radius_miles=max(max_distance, config["distance"]["max_threshold"]),
         limit=limit
     )
-    print(
-        distance_data[:5]
+    logger.info(
+        "First three rows of distance data retrieved: %s", 
+        distance_data[:3]
     )
     return distance_data
 
-# def filter_by_conditions(user_prefs):
-#     logger.info("Filtering by additional conditions based on user preferences.")
-#     return user_prefs
 
 def rag_search(user_prefs, distance_data, config):
     logger.info("Performing RAG search/comparison with user preferences...")
@@ -60,7 +57,6 @@ def main():
     try:
         # preparation
         config = load_config()
-        translate_helper = TranslateHelper()
         # workflow
         user_prefs = get_user_preferences()
         distance_data = filter_by_distance(
@@ -68,16 +64,7 @@ def main():
             config=config,
             limit=100,
         )
-        logger.info(f"Filtered Prefs {distance_data}")
-        # Initialize DBHelper with user preferences
-        # db_helper = DBHelper(user_prefs)  
         results = rag_search(user_prefs, distance_data, config=config)
-        # FIXME: translate the results into the specified language
-        translated_results = translate_helper.translate(
-            from_lang="en", 
-            to_lang=user_prefs['language'], 
-            content=results
-        )
         logger.info("Final Results: %s", results)
     except Exception as e:
         logger.error(f"Workflow error: {str(e)}")

@@ -2,8 +2,6 @@ import os
 import logging
 from typing import Dict, Any, List, Optional
 
-from src.db_helper import DBHelper
-from src.translate_helper import TranslateHelper
 
 import numpy as np
 from sqlalchemy import create_engine, text

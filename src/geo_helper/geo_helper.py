@@ -30,7 +30,7 @@ class GeoHelper:
         geocoded = geocode(address)[0]
         lat = geocoded['location']['y']
         lon = geocoded['location']['x']
-        self.logger.info(f"Geocoded {address} to lat: {lat}, lon: {lon}")
+        self.logger.info(f"Geocoded {address} to lat: {lat}, lon: {lon} with confidence: {geocoded['score']}")
 
         # Access CAFB's food assistance layer (identified from iframe analysis)
         # layer_url = "https://services.arcgis.com/su9ryhqQb8iyeiN2/arcgis/rest/services/CAFB_Partner_Locator/FeatureServer/0"

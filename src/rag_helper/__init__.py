@@ -1,6 +1,6 @@
 """
 RAG helper module for store recommendations
 """
-from .rag_helper import RAGHelper
+from .langchain import LangChainRAGHelper
 
-__all__ = ['RAGHelper'] 
+__all__ = ['LangChainRAGHelper'] 
