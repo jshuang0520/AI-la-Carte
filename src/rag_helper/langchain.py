@@ -228,7 +228,11 @@ class LangChainRAGHelper:
                 filters.append(f"cultural_populations_served REGEXP '{cultures}'")
         return " AND ".join(filters) if filters else "1=1"
 
-    def run_inference(self, user_input: str) -> str:
+    def run_inference(
+            self, 
+            user_input: Dict[str, Any], 
+            distance_data: List[Dict]
+        ) -> str:
         """
         Enhanced inference with dietary rule processing.
         """

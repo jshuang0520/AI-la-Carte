@@ -17,6 +17,7 @@ class GeoHelper:
         self,
         address: str,
         radius_miles: int = 10,
+        limit: int = 100
     ) -> pd.DataFrame:
         """
         Find nearby food assistance locations using CAFB's ArcGIS portal.
@@ -84,9 +85,18 @@ class GeoHelper:
                 'x': props['longitude'],
                 'y': props['latitude']
             }
+            if not props["agency_ref"]:
+                continue
             distance = geodesic((lat, lon), (geom['y'], geom['x'])).miles
-            props['Distance'] = round(distance, 2)
-            if props['Distance'] <= radius_miles:
-                final_results.append(props)
+            temp_dict = {
+                'Distance': round(distance, 2),
+                'agency_ref': props.get('agency_ref', None),
+                'name': props.get('name', None),
+            }
+            if distance <= radius_miles:
+                final_results.append(temp_dict)
 
-        return sorted(final_results, key=lambda x: x['Distance'])
+        sorted_final_results = sorted(final_results, key=lambda x: x['Distance'])
+        self.logger.info(f"Found {len(sorted_final_results)} nearby food assistance locations.")
+
+        return sorted_final_results[:min(limit, len(sorted_final_results))]

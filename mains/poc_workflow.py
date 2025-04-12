@@ -1,6 +1,7 @@
 import sys
 import os
 import logging
+import json
 
 # Configure logging as needed
 logging.basicConfig(level=logging.INFO)
@@ -23,27 +24,35 @@ from src.db_helper.db_helper import DBHelper
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def filter_by_distance(user_prefs):
-    max_distance = user_prefs.get('max_distance')
+def filter_by_distance(
+        user_prefs, 
+        config,
+        limit=100
+    ):
+    max_distance = float(user_prefs.get('max_distance'))
     logger.info("Filtering by distance using max_distance: %s", max_distance)
     geo_helper = GeoHelper()
-    user_prefs['geo_data'] = geo_helper.find_nearby_food_assistance(
-        user_prefs["keys"]["address"], 
-        radius_miles=max(max_distance, user_prefs["distance"]["max_threshold"])
+    distance_data = geo_helper.find_nearby_food_assistance(
+        user_prefs["address"], 
+        radius_miles=max(max_distance, config["distance"]["max_threshold"]),
+        limit=limit
     )
-    return user_prefs
+    print(
+        distance_data[:5]
+    )
+    return distance_data
 
 # def filter_by_conditions(user_prefs):
 #     logger.info("Filtering by additional conditions based on user preferences.")
 #     return user_prefs
 
-def rag_search(user_prefs, config):
+def rag_search(user_prefs, distance_data, config):
     logger.info("Performing RAG search/comparison with user preferences...")
     logger.info("Running inference...")
     inference = LangChainRAGHelper(
         config["llm_config"]["LangChainRAGHelper"]["openai_api_key"]
     )
-    raw_reference = inference.run_inference(user_prefs)
+    raw_reference = inference.run_inference(user_prefs, distance_data)
     logger.info(f"\n Raw reference: {raw_reference}")
     return {"result": {raw_reference}}
 
@@ -54,10 +63,15 @@ def main():
         translate_helper = TranslateHelper()
         # workflow
         user_prefs = get_user_preferences()
-        filtered_prefs = filter_by_distance(user_prefs)
+        distance_data = filter_by_distance(
+            user_prefs, 
+            config=config,
+            limit=100,
+        )
+        logger.info(f"Filtered Prefs {distance_data}")
         # Initialize DBHelper with user preferences
-        db_helper = DBHelper(user_prefs)  
-        results = rag_search(filtered_prefs, config=config)
+        # db_helper = DBHelper(user_prefs)  
+        results = rag_search(user_prefs, distance_data, config=config)
         # FIXME: translate the results into the specified language
         translated_results = translate_helper.translate(
             from_lang="en", 
