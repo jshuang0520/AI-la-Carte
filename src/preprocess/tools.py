@@ -31,4 +31,8 @@ if __name__ == "__main__":
     test_str2 = "15567-MOMK-01 Academy of Hope"
     similarity = calculate_similarity(test_str1, test_str2)
     print(f"Similarity Score between these two strings: {similarity}")
+    str_1 = "hope home, college park, MD, 20740"
+    str_2 = "hopeless home, college park, MD, 20740"
+    similarity = calculate_similarity(str_1, str_2)
+    print(f"caution: similarity of {str_1} and {str_2} = {similarity}")
 
