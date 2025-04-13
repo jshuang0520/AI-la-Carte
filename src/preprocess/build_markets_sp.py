@@ -25,6 +25,12 @@ def _filter_markets_hoo(
 def _filter_shopping_partners_hoo(
         shopping_partners_hoo
     ):
+    shopping_partners_hoo.loc[
+        shopping_partners_hoo["Name"].str.contains(":"), 
+        "Name"
+    ] = (shopping_partners_hoo["Name"]
+         .str.split(":", expand=True)[1]
+         .str.strip())
     shopping_partners_hoo["Is Market"] = False
     shopping_partners_hoo.rename(columns={
         'Name': 'Agency Name',
