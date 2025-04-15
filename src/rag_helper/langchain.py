@@ -1,291 +1,316 @@
+import json
 import os
-import logging
+import sqlite3
+import re
+
 from typing import Dict, Any, List, Optional
-
-
-import numpy as np
-from sqlalchemy import create_engine, text
-from langchain_core.documents import Document
-from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
-from langchain_core.runnables import RunnablePassthrough
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_community.vectorstores import Chroma
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.vectorstores import VectorStoreRetriever
+import logging
+from datetime import datetime
+from langchain.agents import AgentExecutor, create_structured_chat_agent, create_tool_calling_agent
+from langchain.prompts import PromptTemplate, ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import SystemMessage
+from langchain.chains import LLMChain
+from langchain_openai import ChatOpenAI
+from sqlalchemy import create_engine, text
+from langchain.agents import Tool  
 
-_LOG = logging.getLogger(__name__)
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-
-# Globals.
-PROMPT_TEMPLATE = """
-You are a dietary-aware food assistance system. Follow these steps:
-
-1. **Dietary Analysis**:
-{trigger_analysis}
-
-2. **Program Matching**:
-{program_rules}
-
-3. **SQL Construction**:
-- Use exact column names from: {table_info}
-- Include cultural population regex matches
-- Prioritize active programs
-
-4. **Response Format**:
-- Begin with dietary match explanation
-- List agencies with program types
-- Highlight cultural competence
-- Add accessibility notes
-
-User Query: {input}
-"""
-
-class LangChainRAGHelper:
+class DietaryFilterGenerator:
     DIETARY_RULES = {
-        'produce_focused': {
-            'triggers': {'diabetic', 'hypertension', 'low sodium', 'low sugar', 'fresh produce', 'all-produce menu'},
-            'programs': ['Markets'],
-            'cultures': 'All Cultural Populations'
+        'health_restrictions': {
+            # Convert sets to lists for JSON serialization
+            'triggers': ['diabetic', 'hypertension', 'low sodium', 'low sugar', 'fresh produce'],
+            'agency_type': ['Markets'],
+            'cultures_served': 'All Cultural Populations'
         },
-        'halal': {
-            'triggers': {'halal'},
-            'programs': ['Markets', 'Shopping Partners'],
-            'cultures': ['Middle Eastern/North African']
+        'religious_restrictions': {
+            'triggers': ['halal'],
+            'agency_type': ['Markets', 'Shopping Partners'],
+            'cultures_served': 'Middle Eastern/North African'
+        },
+        "no_dietary_needs": {
+            'triggers': [],
+            'agency_type': [],
+            'cultures_served': ''
         }
     }
+
+    # DietaryFilterGenerator's SQL_GEN_TEMPLATE (updated example and instructions)
+    SQL_GEN_TEMPLATE = """Analyze user preferences and dietary rules to create SQL WHERE clauses.
+    DIETARY_RULES:
+    {dietary_rules}
+
+    USER PREFERENCES:
+    {user_prefs}
+
+    Instructions:
+    1. Identify applicable dietary restrictions from preferences
+    2. Map to corresponding rules using these column names:
+    - agency_type (values: Markets, Shopping Partners)
+    - 'Cultural Populations Served' (text field)
+    3. For each matched rule, create conditions with:
+    - agency_type IN (comma-separated quoted values)
+    - 'Cultural Populations Served' LIKE '%rule_culture%'
+    4. Combine conditions with AND between rules
+    5. Generate only the conditions without WHERE keyword
+
+    Example response for Halal:
+    (agency_type IN ('Markets', 'Shopping Partners') 
+    AND 'Cultural Populations Served' LIKE '%Middle Eastern/North African%')
+
+    Now generate conditions for these preferences:"""
+
 
     def __init__(
         self,
         openai_api_key: str,
-        *,
-        model_name: Optional[str] = "gpt-4-mini",
-        persist_directory: Optional[str] = "chroma_data",
-        temperature: Optional[float] = 0.0,
+        model_name: str = "gpt-4o-mini",
+        temperature: float = 0.0
     ):
-        """
-        Initialize the RAG helper with LangChain components. 
-        """
-        os.environ["OPENAI_API_KEY"] = openai_api_key
-        # Initialize components.
-        self.llm = ChatOpenAI(model=model_name, temperature=temperature)
-        self.embeddings = OpenAIEmbeddings()
-        self.vector_store: Optional[Chroma] = None
-        self.retriever: Optional[VectorStoreRetriever] = None
-        self.qa_chain = None
-        # Setup chain during initialization.
-        self._initialize_vector_store(persist_directory)
-        self._setup_qa_chain()
-        project_root = os.path.dirname(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.sql_gen_prompt = PromptTemplate(
+            input_variables=["dietary_rules", "user_prefs"],
+            template=self.SQL_GEN_TEMPLATE
         )
-        db_path = os.path.join(project_root, 'data/cafb.db')
-        self.engine = create_engine(f'sqlite:///{db_path}')
+        os.environ["OPENAI_API_KEY"] = openai_api_key
+        self.llm = ChatOpenAI(
+            model=model_name, 
+            temperature=temperature
+        )
 
-    def _initialize_vector_store(self, persist_directory: str):
-        """
-        Initialize or load a Chroma vector store.
-        """
+
+    def generate_dietary_filters(self, user_prefs: Dict) -> str:
         try:
-            self.vector_store = Chroma(
-                persist_directory=persist_directory,
-                embedding_function=self.embeddings
-            )
-            self.retriever = self.vector_store.as_retriever(k=5)
-            _LOG.info("Vector store initialized successfully")
+            chain = self.sql_gen_prompt | self.llm
+            result = chain.invoke({
+                "dietary_rules": json.dumps(self.DIETARY_RULES, indent=2),
+                "user_prefs": json.dumps(user_prefs, indent=2)
+            })
+            
+            # Extract only SQL code from response
+            sql_match = re.search(r"```sql\n(.*?)\n```", result.content, re.DOTALL)
+            if sql_match:
+                return sql_match.group(1).strip()
+            return ""  # Fallback to empty filter
+            
         except Exception as e:
-            _LOG.error(f"Error initializing vector store: {str(e)}")
-            raise
+            logger.error(f"Error generating dietary filters: {str(e)}")
+            return ""
 
-    def _create_rag_prompt_template(self) -> ChatPromptTemplate:
-        """
-        Create a RAG prompt template for store recommendations.
-        """
-        system_template = """
-        You are an assistant that recommends stores based on user preferences.
-        Use the following context (store information) and user preferences to make recommendations.
-        Be specific about why each store matches the user's needs.
+class QueryBuilder:
+    @staticmethod
+    def build_query(arcgis_agencies: List[Dict], dietary_where: str) -> str:
+        # Validate agencies
+        if not arcgis_agencies:
+            raise ValueError("No agencies provided")
+            
+        # Sanitize inputs
+        agency_ids = [str(a.get("agency_ref_id", "")).replace("'", "") for a in arcgis_agencies]
+        agency_names = [a.get("agency_name", "").replace("'", "") for a in arcgis_agencies]
         
-        Context:
-        {context}
+        # Build safe clauses
+        id_clause = f"'Agency ID' IN ({','.join(agency_ids)})" if agency_ids else "1=0"
+        if agency_names:
+            names_str = ','.join(f"'{name}'" for name in agency_names)
+            name_clause = f"'Agency Name' IN ({names_str})"
+        else:
+            name_clause = "1=0"
         
-        User Preferences:
-        {preferences}
-        """
-        human_template = "Based on my preferences, which stores would you recommend and why?"
-        return ChatPromptTemplate.from_messages([
-            SystemMessagePromptTemplate.from_template(system_template),
-            HumanMessagePromptTemplate.from_template(human_template)
+        # Clean dietary clause
+        safe_dietary = re.sub(r"[^a-zA-Z0-9%_=()' ,/-]", "", dietary_where) if dietary_where else ""
+        dietary_clause = f"AND ({safe_dietary})" if safe_dietary else ""
+        
+        return f"""
+        SELECT *
+        FROM combined_data
+        WHERE ({id_clause} OR {name_clause})
+        {dietary_clause}
+        LIMIT 50"""
+
+
+class ResponseGenerator:
+    RESPONSE_TEMPLATE = """You are a food assistance coordinator. Available tools: {tools} [{tool_names}]
+    
+    Generate responses in {language} using this structure:
+    {response_structure}"""
+
+    RESPONSE_STRUCTURE = """For each agency in {query_results}:
+    **Option [number]:**
+    - Agency Name: [exact value]
+    - Address: [Shipping Address]
+    - Distance: [convert Distance to miles if number, else 'Unknown']
+    - Operating Hours: [Day or Week] [Starting Time]-[Ending Time]
+    - Frequency: [Frequency]
+    - Food Format: [Food Format or 'Not specified']
+    - Choice Options: [Choice Options or 'Not specified']
+    - Distribution Models: [Distribution Models or 'Not specified']
+    - Phone: [Phone or 'Not available']
+    - URL: [URL or 'Not available']
+    - Appointment Only: [By Appointment Only]
+    - Additional Notes: [Additional Note on Hours of Operations or 'None']
+    - Wraparound Services: [Wraparound Service]
+    - Note: Compare {user_services} with agency services. List missing as "Missing requested services: [services]"
+    
+    Requirements:
+    1. Maintain original agency ordering
+    2. Use markdown bold for section headers
+    3. Never hallucinate fields - use 'Not available' for missing data
+    4. Convert times to HH:MM format
+    5. List EXACTLY these fields in order"""
+
+    def __init__(
+        self,
+        openai_api_key: str,
+        model_name: str = "gpt-4",
+        temperature: float = 0.1
+    ):
+        os.environ["OPENAI_API_KEY"] = openai_api_key
+        self.llm = ChatOpenAI(
+            model=model_name,
+            temperature=temperature
+        )
+        self.tools = []
+
+        # self.tools = [
+        #     Tool(
+        #         name="Result Formatter",
+        #         func=self.format_sql_results_tool,
+        #         description="Formats SQL results into structured data"
+        #     )
+        # ]
+
+    def create_response_agent(self) -> AgentExecutor:
+        prompt = ChatPromptTemplate.from_messages([
+            SystemMessage(content=self.RESPONSE_TEMPLATE),
+            ("human", "User preferences:\n{user_prefs}\n\nAgency data:\n{query_results}"),
+            MessagesPlaceholder("agent_scratchpad"),
         ])
 
-    def _setup_qa_chain(self):
-        """
-        Set up the QA chain with retrieval and prompt templating.
-        """
+        return AgentExecutor(
+            agent=create_tool_calling_agent(
+                self.llm,
+                tools=self.tools,
+                prompt=prompt
+            ),
+            tools=self.tools,
+            verbose=True
+        )
+
+
+    def generate_final_response(self, query_results: List[Dict], user_prefs: Dict) -> str:
+        response_structure = self.RESPONSE_STRUCTURE
         try:
-            prompt_template = self._create_rag_prompt_template()
-            self.qa_chain = (
-                {
-                    "context": self.retriever,
-                    "preferences": RunnablePassthrough()
-                }
-                | prompt_template
-                | self.llm
-                | StrOutputParser()
-            )
-            _LOG.info("QA chain setup complete")
+            response_agent = self.create_response_agent()
+            return response_agent.invoke({
+                # "tool_names": "Result Formatter",
+                # "tools": self.tools,
+                "response_structure": response_structure,
+                "language": user_prefs.get("language", "English"),
+                "query_results": query_results,
+                "user_services": user_prefs.get("services", []),
+                "user_prefs": json.dumps(user_prefs, indent=2)
+            })["output"]
         except Exception as e:
-            _LOG.error(f"Error setting up QA chain: {str(e)}")
-            raise
+            logger.error(f"Response generation failed: {str(e)}")
+            return "Could not generate response due to an internal error."
 
-    def _format_preferences(self, preferences: Dict[str, Any]) -> str:
-        """
-        Convert user preferences dictionary to formatted string.
-        """
-        return "\n".join(f"{k}: {v}" for k, v in preferences.items())
-    
-    def _get_contact_details(self, names: List[str]) -> List[Dict]:
-        """Query SQL database for specific partner/market contacts"""
-        results = []
-        with self.engine.connect() as conn:
-            for name in names:
-                try:
-                    query = text("""
-                        SELECT 
-                            name, 
-                            "Phone" as contact_phone,
-                            "Shipping Address" as address,
-                            "Hours of Operation" as hours,
-                            "Eligibility Requirements" as requirements
-                        FROM cafb_shopping_partners_hoo
-                        WHERE name LIKE :name
-                        UNION
-                        SELECT
-                            name,
-                            "Contact Phone",
-                            "Market Address",
-                            "Operating Hours",
-                            "Service Requirements"
-                        FROM cafb_markets
-                        WHERE name LIKE :name
-                    """)
-                    result = conn.execute(query, {"name": f"%{name}%"})
-                    results.extend([dict(row) for row in result])
-                except Exception as e:
-                    _LOG.error(f"Query failed for {name}: {str(e)}")
-        return results
+    @staticmethod
+    def format_sql_results_tool(query_results: List[Dict]) -> List[Dict]:
+        """Converts raw SQL results to structured JSON with consistent fields"""
+        formatted = []
+        for row in query_results:
+            formatted.append({
+                "Agency Name": row.get("Agency_Name", ""),
+                "Shipping Address": row.get("Shipping_Address", ""),
+                "Distance": f"{row['Distance']} miles" if isinstance(row.get("Distance"), (int, float)) else "Unknown",
+                "Day or Week": row.get("Day_or_Week", ""),
+                "Starting Time": ResponseGenerator.format_time(row.get("Starting_Time")),
+                "Ending Time": ResponseGenerator.format_time(row.get("Ending_Time")),
+                "Frequency": row.get("Frequency", "Not specified"),
+                "Food Format": row.get("Food_Format", "Not specified"),
+                "Choice Options": row.get("Choice_Options", "Not specified"),
+                "Distribution Models": row.get("Distribution_Models", "Not specified"),
+                "Phone": row.get("Phone", "Not available"),
+                "URL": row.get("URL", "Not available"),
+                "By Appointment Only": "Yes" if row.get("By_Appointment_Only") else "No",
+                "Additional Note on Hours of Operations": row.get("Additional_Note_on_Hours_of_Operations", "None"),
+                "Wraparound Service": ResponseGenerator.parse_services(row.get("Wraparound_Service"))
+            })
+        return formatted
 
-    def _format_response(self, raw_data: List[Dict]) -> str:
-        """
-        Format raw SQL results into natural language.
-        """
-        # Convert raw data to a structured format.
-        template = """
-        Convert these database entries into friendly contact information:
-        {data}
-        
-        Include:
-        - Clear headings with organization name
-        - Phone number formatting
-        - Address formatting with line breaks
-        - Hours in simple terms
-        - Requirements as bullet points
-        - Translation of any technical terms
-        """
-        response = self.llm.invoke(template.format(data=raw_data))
-        return response.content
+    @staticmethod
+    def parse_services(service_str: Optional[str]) -> List[str]:
+        return [s.strip() for s in service_str.split(";")] if service_str else []
 
-    def _analyze_dietary_needs(self, query: str) -> dict:
-        """
-        Match dietary restrictions to program rules.
-        """
-        query_lower = []
-        matched_rules = []
-        if query["health_dietary"]:
-            query_lower.extend(query["health_dietary"])
-        if query["religious_dietary"]:
-            query_lower.extend(query["religious_dietary"])
-        for rule_name, rule in self.DIETARY_RULES.items():
-            if any(trigger in query_lower for trigger in rule['triggers']):
-            # if any(trigger in query for trigger in rule['triggers']):
-                matched_rules.append(rule)
-        
-        return matched_rules[0] if matched_rules else None
+    @staticmethod
+    def format_time(time_str: Optional[str]) -> str:
+        try:
+            return datetime.strptime(time_str, "%H:%M:%S").strftime("%H:%M")
+        except (ValueError, TypeError):
+            return time_str or "Unknown"
 
-    def _build_sql_filter(self, rules: dict) -> str:
-        """
-        Convert rules to SQL WHERE clauses.
-        """
-        filters = []
-        if rules:
-            programs = ", ".join(f"'{p}'" for p in rules['programs'])
-            filters.append(f"associated_program IN ({programs})")
+class FoodAssistanceRAG:
+    def __init__(
+        self,
+        openai_api_key: str,
+        db_path: str = "combined_data.db",
+        dietary_model: str = "gpt-4o-mini",
+        response_model: str = "gpt-4o-mini",
+        dietary_temperature: float = 0.0,
+        response_temperature: float = 0.1
+    ):
+        db_path = os.path.expanduser(db_path)
+        self.engine = create_engine(f"sqlite:///{db_path}")
+        self.filter_gen = DietaryFilterGenerator(
+            openai_api_key=openai_api_key,
+            model_name=dietary_model,
+            temperature=dietary_temperature
+        )
+        self.response_gen = ResponseGenerator(
+            openai_api_key=openai_api_key,
+            model_name=response_model,
+            temperature=response_temperature
+        )
+        self.query_builder = QueryBuilder()
+
+    def process_request(self, input_info: Dict) -> str:
+        try:
+            # Generate dietary filters
+            dietary_where = self.filter_gen.generate_dietary_filters(
+                input_info["USER_PREFS"]
+            )
             
-            if rules['cultures'] != 'All Cultural Populations':
-                cultures = "|".join(rules['cultures'])
-                filters.append(f"cultural_populations_served REGEXP '{cultures}'")
-        return " AND ".join(filters) if filters else "1=1"
+            # Build complete query
+            full_query = self.query_builder.build_query(
+                input_info["Arcgis"],
+                dietary_where
+            )
+            logger.info(f"Executing query: {full_query}")
+            
+            # Execute query
+            query_results = self.execute_query(full_query)
+            
+            # Generate final response
+            return self.response_gen.generate_final_response(
+                query_results=query_results,
+                user_prefs=input_info["USER_PREFS"]
+            )
+        except Exception as e:
+            logger.error(f"Processing failed: {str(e)}")
+            return "An error occurred while processing your request."
 
-    def run_inference(
-            self, 
-            user_input: Dict[str, Any], 
-            distance_data: List[Dict]
-        ) -> str:
-        """
-        Enhanced inference with dietary rule processing.
-        """
-        # Analyze dietary needs.
-        diet_rules = self._analyze_dietary_needs(user_input)
-        # Build SQL query.
-        base_query = """
-        SELECT 
-            name,
-            contact_phone,
-            address,
-            hours_of_operation,
-            cultural_populations_served,
-            associated_program
-        FROM combined_services
-        WHERE {filters}
-        """
-        sql_filters = self._build_sql_filter(diet_rules)
-        final_query = base_query.format(filters=sql_filters)
-        # Execute query.
-        with self.engine.connect() as conn:
-            result = conn.execute(text(final_query))
-            results = [dict(row) for row in result]
-        # Generate natural language response.
-        return self._format_guided_response(results, diet_rules)
-
-    def _format_guided_response(self, data: list, rules: dict) -> str:
-        """Generate structured response with decision explanation"""
-        prompt_template = """
-        You are a food assistance counselor. Explain these results:
-        
-        Dietary Analysis: {diet_analysis}
-        
-        Matching Services:
-        {services}
-        
-        Format as:
-        1. **Dietary Match**: Explain rule activation
-        2. **Recommended Services**: List with icons
-        3. **Cultural Considerations**: Explain population matches
-        4. **Next Steps**: Actionable instructions
-        """
-        diet_analysis = self._explain_rules(rules) if rules else "No specific dietary restrictions identified"
-        services_str = "\n".join([f"- {s['name']} ({s['associated_program']})" for s in data])
-        
-        return self.llm.invoke(prompt_template.format(
-            diet_analysis=diet_analysis,
-            services=services_str
-        )).content
-
-    def _explain_rules(self, rules: dict) -> str:
-        """
-        Generate natural language explanation of active rules.
-        """
-        explanation = "Based on your dietary needs:\n"
-        explanation += f"- Program Focus: {', '.join(rules['programs'])}\n"
-        explanation += f"- Cultural Match: {', '.join(rules['cultures']) if isinstance(rules['cultures'], list) else rules['cultures']}"
-        return explanation
+    def execute_query(self, query: str) -> List[Dict]:
+        try:
+            # Remove any remaining markdown
+            clean_query = re.sub(r"```sql|```", "", query)
+            
+            with self.engine.connect() as connection:
+                if not connection.dialect.has_table(connection, "combined_data"):
+                    raise ValueError("combined_data table does not exist")
+                result = connection.execute(text(clean_query))
+                return [dict(row._mapping) for row in result]
+        except Exception as e:
+            logger.error(f"Query execution failed: {str(e)}")
+            return []
