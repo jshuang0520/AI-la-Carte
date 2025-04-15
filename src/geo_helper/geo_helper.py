@@ -41,6 +41,7 @@ class GeoHelper:
         data = pd.read_excel(
             os.path.join(project_dir, 'data', 'CAFB_Markets_Shopping_Partners.xlsx')
         )
+        data = data[data['x'].notna() & data['y'].notna()]
         data["Distance"] = data.apply(
             lambda x: geodesic((lat, lon), (x["y"], x["x"])).miles, axis=1
         )

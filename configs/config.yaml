@@ -59,7 +59,7 @@ log_level: INFO
 # -------------------------------
 user_preferences:
   order:
-    order: ["language", "address", "pickup_day", "pickup_time", "transportation", "health_dietary", "religious_dietary", "kitchen_access", "services", "proxy_pickup", "max_distance"]
+    order: ["language", "address", "pickup_day", "pickup_time", "transportation", "health_dietary_restrictions", "religious_dietary_restrictions", "kitchen_access", "services", "proxy_pickup", "max_distance"]
     single_choice: ["language", "pickup_day", "transportation", "kitchen_access", "proxy_pickup", "max_distance"]
   keys:
     language: language
@@ -67,8 +67,8 @@ user_preferences:
     pickup_day: pickup_day
     pickup_time: pickup_time
     transportation: transportation
-    health_dietary: health_dietary
-    religious_dietary: religious_dietary
+    health_dietary_restrictions: health_dietary_restrictions
+    religious_dietary_restrictions: religious_dietary_restrictions
     kitchen_access: kitchen_access
     services: services
     proxy_pickup: proxy_pickup
@@ -79,8 +79,8 @@ user_preferences:
     pickup_day: "Would you like to get food today or another day this week? (today/tomorrow/this_week): "
     pickup_time: "Please select your preferred pickup time from the available slots:"
     transportation: "Are you able to travel to a food pantry using a private vehicle or public transit? (yes/no): "
-    health_dietary: "Do you have any dietary restrictions or diet-related illness? (e.g., Diabetic Meal, Low Sodium/Hypertension Meal, etc.): "
-    religious_dietary: "Do you have any dietary restrictions due to religious or cultural reasons? (e.g., Halal Meal, Kosher Meal, Vegetarian Meal, etc.): "
+    health_dietary_restrictions: "Do you have any dietary restrictions or diet-related illness? (e.g., Diabetic Meal, Low Sodium/Hypertension Meal, etc.): "
+    religious_dietary_restrictions: "Do you have any dietary restrictions due to religious or cultural reasons? (e.g., Halal Meal, Kosher Meal, Vegetarian Meal, etc.): "
     kitchen_access: "Do you have access to a kitchen to store and/or cook food? (Yes, so I can take raw food or tins / No, so I need Prepared meals): "
     services: "Do you also need any of these other services? (Select all that apply): "
     proxy_pickup: "Can a relative or friend travel to a pantry for you? (yes/no): "
@@ -147,8 +147,8 @@ user_preferences:
     pickup_day: null
     pickup_time: null
     transportation: null
-    health_dietary: null
-    religious_dietary: null
+    health_dietary_restrictions: null
+    religious_dietary_restrictions: null
     kitchen_access: null
     services: null
     proxy_pickup: null
