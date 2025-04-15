@@ -107,14 +107,21 @@ class QueryBuilder:
             raise ValueError("No agencies provided")
             
         # Sanitize inputs
-        agency_ids = [str(a.get("agency_ref_id", "")).replace("'", "") for a in arcgis_agencies]
-        agency_names = [a.get("agency_name", "").replace("'", "") for a in arcgis_agencies]
+        agency_ids = [str(a.get("Agency ID", "")).replace("'", "") for a in arcgis_agencies]
+        agency_names = [a.get("Agency Name", "").replace("'", "") for a in arcgis_agencies]
         
         # Build safe clauses
-        id_clause = f"'Agency ID' IN ({','.join(agency_ids)})" if agency_ids else "1=0"
+        # id_clause = f"'Agency ID' IN ({','.join(f'\'{agency_ids}\'')})" if agency_ids else "1=0"
+        if agency_ids:
+            id_str = ','.join(f"'{agency_id}'" for agency_id in agency_ids)
+            id_clause = f"'Agency ID' IN ({id_str})"    
+        else:
+            id_clause = "1=0"
+            
         if agency_names:
             names_str = ','.join(f"'{name}'" for name in agency_names)
             name_clause = f"'Agency Name' IN ({names_str})"
+        
         else:
             name_clause = "1=0"
         
