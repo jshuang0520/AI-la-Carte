@@ -2,18 +2,16 @@ import os
 import logging
 from typing import Dict, Any, List, Optional
 
-from src.embedding_helper import EmbeddingHelper
-from src.db_helper import DBHelper
-from src.translate_helper import TranslateHelper
 
 import numpy as np
+from sqlalchemy import create_engine, text
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_core.output_parsers import StrOutputParser
-# from langchain_core.retrievers import VectorStoreRetriever
+from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_core.messages import SystemMessage
 
 _LOG = logging.getLogger(__name__)
@@ -46,7 +44,7 @@ User Query: {input}
 class LangChainRAGHelper:
     DIETARY_RULES = {
         'produce_focused': {
-            'triggers': {'diabetic', 'hypertension', 'low sodium', 'low sugar', 'fresh produce'},
+            'triggers': {'diabetic', 'hypertension', 'low sodium', 'low sugar', 'fresh produce', 'all-produce menu'},
             'programs': ['Markets'],
             'cultures': 'All Cultural Populations'
         },
@@ -78,6 +76,11 @@ class LangChainRAGHelper:
         # Setup chain during initialization.
         self._initialize_vector_store(persist_directory)
         self._setup_qa_chain()
+        project_root = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
+        db_path = os.path.join(project_root, 'data/cafb.db')
+        self.engine = create_engine(f'sqlite:///{db_path}')
 
     def _initialize_vector_store(self, persist_directory: str):
         """
@@ -196,10 +199,15 @@ class LangChainRAGHelper:
         """
         Match dietary restrictions to program rules.
         """
-        query_lower = query.lower()
+        query_lower = []
         matched_rules = []
+        if query["health_dietary"]:
+            query_lower.extend(query["health_dietary"])
+        if query["religious_dietary"]:
+            query_lower.extend(query["religious_dietary"])
         for rule_name, rule in self.DIETARY_RULES.items():
             if any(trigger in query_lower for trigger in rule['triggers']):
+            # if any(trigger in query for trigger in rule['triggers']):
                 matched_rules.append(rule)
         
         return matched_rules[0] if matched_rules else None
@@ -218,7 +226,11 @@ class LangChainRAGHelper:
                 filters.append(f"cultural_populations_served REGEXP '{cultures}'")
         return " AND ".join(filters) if filters else "1=1"
 
-    def run_inference(self, user_input: str) -> str:
+    def run_inference(
+            self, 
+            user_input: Dict[str, Any], 
+            distance_data: List[Dict]
+        ) -> str:
         """
         Enhanced inference with dietary rule processing.
         """

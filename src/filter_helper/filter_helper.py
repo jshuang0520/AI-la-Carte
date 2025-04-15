@@ -4,7 +4,7 @@ import pandas as pd
 import datetime
 from typing import Dict, Any, List
 
-from src.logger import Logger
+from src.utilities.logger import Logger
 from src.geo_helper import GeoHelper
 from src.rag_helper import RAGHelper
 from src.translate_helper import TranslateHelper
