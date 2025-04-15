@@ -130,6 +130,7 @@ user_preferences:
       - "Yes, so I can take raw food or tins"
       - "No, so I need Prepared meals"
     services:
+      - "None"
       - "Housing"
       - "Government benefits"
       - "Financial assistance"
@@ -159,7 +160,7 @@ user_preferences:
 # -------------------------------
 llm_config:
   LangChainRAGHelper:
-    openai_api_key: "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"
+    openai_api_key: ""
     model_name: "gpt-4o-mini"
     persist_directory: "chroma_data"
     temperature: 0.0
