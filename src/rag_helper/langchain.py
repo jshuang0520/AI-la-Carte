@@ -96,23 +96,27 @@ class DietaryFilterGenerator:
 class QueryBuilder:
     @staticmethod
     def build_query(arcgis_agencies: List[Dict], dietary_where: str) -> str:
-        try:
-            agency_ids = [str(a["agency_ref_id"]) for a in arcgis_agencies]
-            agency_names = [a["agency_name"] for a in arcgis_agencies]
+        # Add SQL injection protection
+        sanitized_where = re.sub(
+            r"[;'\"]|(--)|(/\*[\w\W]*?\*/)", 
+            "", 
+            dietary_where, 
+            flags=re.IGNORECASE
+        ) if dietary_where else ""
+        # Build base query
+        base_query = f"""
+        SELECT * 
+        FROM combined_data
+        WHERE (
+            Agency_ID IN ({','.join(agency_ids)}) 
+            OR Agency_Name IN ({','.join(f'"{name}"' for name in agency_names)})
+        )"""
+        
+        # Add validated WHERE clause
+        if sanitized_where:
+            base_query += f" AND ({sanitized_where})"
             
-            where_clause = f"""
-            WHERE (
-                Agency_ID IN ({','.join(agency_ids)})
-                OR Agency_Name IN ({','.join(f'"{name}"' for name in agency_names)})
-            )"""
-            
-            if dietary_where.strip():
-                where_clause += f"\n{dietary_where}"
-                
-            return f"SELECT * FROM combined_data {where_clause}"
-        except KeyError as e:
-            logger.error(f"Missing key in ArcGIS data: {str(e)}")
-            return "SELECT * FROM combined_data"
+        return base_query + " LIMIT 50"  # Explicit safe limit
 
 class ResponseGenerator:
     RESPONSE_TEMPLATE = """You are a food assistance coordinator. Available tools: {tool_names}. 
@@ -158,12 +162,20 @@ class ResponseGenerator:
         self.tools = [self.format_sql_results_tool]
 
     def create_response_agent(self) -> AgentExecutor:
-        prompt = ChatPromptTemplate.from_messages([
-            SystemMessage(content=self.RESPONSE_TEMPLATE),
-            ("human", "User preferences:\n{user_prefs}\n\nAgency data:\n{query_results}"),
-            MessagesPlaceholder("agent_scratchpad"),
-        ])
-
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                SystemMessage(content=self.RESPONSE_TEMPLATE),
+                ("human", "User preferences:\n{user_prefs}\n\nAgency data:\n{query_results}"),
+                MessagesPlaceholder("agent_scratchpad"),
+            ],
+            input_variables=[
+                "tool_names",
+                "language",
+                "query_results",
+                "user_services",
+                "user_prefs"
+            ]
+        )
         return AgentExecutor(
             agent=create_structured_chat_agent(
                 self.llm,
@@ -175,18 +187,15 @@ class ResponseGenerator:
         )
     
     def generate_final_response(self, query_results: List[Dict], user_prefs: Dict) -> str:
-        """Moved from FoodAssistanceRAG to proper class"""
         try:
             response_agent = self.create_response_agent()
-            result = response_agent.invoke({
-                "tools": [t.name for t in self.tools],
-                "tool_names": ", ".join([t.name for t in self.tools]),
+            return response_agent.invoke({
+                "tool_names": "format_sql_results_tool",  # Single tool
+                "language": user_prefs.get("language", "English"),
                 "query_results": query_results,
                 "user_services": user_prefs.get("services", []),
-                "language": user_prefs.get("language", "English"),
                 "user_prefs": json.dumps(user_prefs, indent=2)
-            })
-            return result.get("output", "No response generated")
+            })["output"]
         except Exception as e:
             logger.error(f"Response generation failed: {str(e)}")
             return "Could not generate response due to an internal error."
