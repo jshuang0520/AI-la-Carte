@@ -89,7 +89,7 @@ user_preferences:
     language: ["en", "es"]  # ["en", "es", "zh", "ar", "vi", "am"]
     pickup_day: ["today", "tomorrow", "this_week"]
     transportation: ["yes", "no"]
-    health_dietary:
+    health_dietary_restrictions:
       - "None"
       - "Diabetic Meal"
       - "Low Sodium / Hypertension Meal"
@@ -108,7 +108,7 @@ user_preferences:
         follow_up:
           - "Please specify what is your health dietary: "
 
-    religious_dietary:
+    religious_dietary_restrictions:
       - "None"
       - "Halal Meal"
       - "Kosher Meal"
