@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 # if project_root not in sys.path:
 #     sys.path.insert(0, project_root)
 
-from src.utilities import load_config  # from src/utilities/__init__.py
+from src.utilities.config_parser import load_config  # from src/utilities/__init__.py
 
 def get_available_time_slots(config):
     time_config = config.get('time', {})
@@ -137,7 +137,3 @@ def get_user_preferences():
     responses = prompt_user(user_pref_questions, user_pref_valid_options, config)
     return responses
 
-if __name__ == "__main__":
-    prefs = get_user_preferences()
-    print("\nCollected Preferences:")
-    print(prefs)

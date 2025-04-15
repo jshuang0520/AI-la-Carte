@@ -7,16 +7,12 @@ import json
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Insert the project root into sys.path.
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
 
 # Updated imports from utilities
-from src.utilities import load_config
+from src.utilities.config_parser import load_config
 from src.user_preferences.user_preferences import get_user_preferences
 from src.geo_helper.geo_helper import GeoHelper
-from src.rag_helper.langchain import LangChainRAGHelper
+import src.rag_helper.langchain as lc
 
 
 # Configure logging
@@ -46,12 +42,15 @@ def filter_by_distance(
 def rag_search(user_prefs, distance_data, config):
     logger.info("Performing RAG search/comparison with user preferences...")
     logger.info("Running inference...")
-    inference = LangChainRAGHelper(
-        config["llm_config"]["LangChainRAGHelper"]["openai_api_key"]
+    INPUT_INFO = {"USER_PREFS": user_prefs, "Arcgis": distance_data}
+    rag_system = lc.FoodAssistanceRAG(
+        openai_api_key="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",
+        db_path="/home/tkpratardan/Personal/allacarte/data/cafb.db",
+        dietary_model="gpt-4o-mini",
+        response_model="gpt-4o-mini"
     )
-    raw_reference = inference.run_inference(user_prefs, distance_data)
-    logger.info(f"\n Raw reference: {raw_reference}")
-    return {"result": {raw_reference}}
+    response = rag_system.process_request(prefs)
+    return response
 
 def main():
     try:
