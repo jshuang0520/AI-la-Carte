@@ -1,15 +1,18 @@
 import json
 import os
 import sqlite3
+import re
+
 from typing import Dict, Any, List, Optional
 import logging
 from datetime import datetime
-from langchain.agents import AgentExecutor, create_structured_chat_agent
+from langchain.agents import AgentExecutor, create_structured_chat_agent, create_tool_calling_agent
 from langchain.prompts import PromptTemplate, ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import SystemMessage
 from langchain.chains import LLMChain
 from langchain_openai import ChatOpenAI
 from sqlalchemy import create_engine, text
+from langchain.agents import Tool  
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -35,6 +38,7 @@ class DietaryFilterGenerator:
         }
     }
 
+    # DietaryFilterGenerator's SQL_GEN_TEMPLATE (updated example and instructions)
     SQL_GEN_TEMPLATE = """Analyze user preferences and dietary rules to create SQL WHERE clauses.
     DIETARY_RULES:
     {dietary_rules}
@@ -46,18 +50,19 @@ class DietaryFilterGenerator:
     1. Identify applicable dietary restrictions from preferences
     2. Map to corresponding rules using these column names:
     - agency_type (values: Markets, Shopping Partners)
-    - Cultural_Populations_Served (text field)
+    - 'Cultural Populations Served' (text field)
     3. For each matched rule, create conditions with:
-    - agency_type IN (rule's agency_types)
-    - Cultural_Populations_Served LIKE '%rule_culture%'
+    - agency_type IN (comma-separated quoted values)
+    - 'Cultural Populations Served' LIKE '%rule_culture%'
     4. Combine conditions with AND between rules
-    5. Use exact column names and proper SQL syntax
+    5. Generate only the conditions without WHERE keyword
 
     Example response for Halal:
-    WHERE (agency_type IN ('Markets', 'Shopping Partners') 
-    AND Cultural_Populations_Served LIKE '%Middle Eastern/North African%')
+    (agency_type IN ('Markets', 'Shopping Partners') 
+    AND 'Cultural Populations Served' LIKE '%Middle Eastern/North African%')
 
     Now generate conditions for these preferences:"""
+
 
     def __init__(
         self,
@@ -75,19 +80,20 @@ class DietaryFilterGenerator:
             temperature=temperature
         )
 
-   
+
     def generate_dietary_filters(self, user_prefs: Dict) -> str:
         try:
-            # Use the new Runnable approach
             chain = self.sql_gen_prompt | self.llm
             result = chain.invoke({
                 "dietary_rules": json.dumps(self.DIETARY_RULES, indent=2),
                 "user_prefs": json.dumps(user_prefs, indent=2)
             })
-            # Extract content safely
-            if hasattr(result, 'content'):
-                return result.content.strip()
-            return str(result).strip()
+            
+            # Extract only SQL code from response
+            sql_match = re.search(r"```sql\n(.*?)\n```", result.content, re.DOTALL)
+            if sql_match:
+                return sql_match.group(1).strip()
+            return ""  # Fallback to empty filter
             
         except Exception as e:
             logger.error(f"Error generating dietary filters: {str(e)}")
@@ -96,35 +102,41 @@ class DietaryFilterGenerator:
 class QueryBuilder:
     @staticmethod
     def build_query(arcgis_agencies: List[Dict], dietary_where: str) -> str:
-        # Add SQL injection protection
-        sanitized_where = re.sub(
-            r"[;'\"]|(--)|(/\*[\w\W]*?\*/)", 
-            "", 
-            dietary_where, 
-            flags=re.IGNORECASE
-        ) if dietary_where else ""
-        # Build base query
-        base_query = f"""
-        SELECT * 
-        FROM combined_data
-        WHERE (
-            Agency_ID IN ({','.join(agency_ids)}) 
-            OR Agency_Name IN ({','.join(f'"{name}"' for name in agency_names)})
-        )"""
-        
-        # Add validated WHERE clause
-        if sanitized_where:
-            base_query += f" AND ({sanitized_where})"
+        # Validate agencies
+        if not arcgis_agencies:
+            raise ValueError("No agencies provided")
             
-        return base_query + " LIMIT 50"  # Explicit safe limit
+        # Sanitize inputs
+        agency_ids = [str(a.get("agency_ref_id", "")).replace("'", "") for a in arcgis_agencies]
+        agency_names = [a.get("agency_name", "").replace("'", "") for a in arcgis_agencies]
+        
+        # Build safe clauses
+        id_clause = f"'Agency ID' IN ({','.join(agency_ids)})" if agency_ids else "1=0"
+        if agency_names:
+            names_str = ','.join(f"'{name}'" for name in agency_names)
+            name_clause = f"'Agency Name' IN ({names_str})"
+        else:
+            name_clause = "1=0"
+        
+        # Clean dietary clause
+        safe_dietary = re.sub(r"[^a-zA-Z0-9%_=()' ,/-]", "", dietary_where) if dietary_where else ""
+        dietary_clause = f"AND ({safe_dietary})" if safe_dietary else ""
+        
+        return f"""
+        SELECT *
+        FROM combined_data
+        WHERE ({id_clause} OR {name_clause})
+        {dietary_clause}
+        LIMIT 50"""
+
 
 class ResponseGenerator:
-    RESPONSE_TEMPLATE = """You are a food assistance coordinator. Available tools: {tool_names}. 
+    RESPONSE_TEMPLATE = """You are a food assistance coordinator. Available tools: {tools} [{tool_names}]
     
     Generate responses in {language} using this structure:
+    {response_structure}"""
 
-    For each agency in {query_results}:
-
+    RESPONSE_STRUCTURE = """For each agency in {query_results}:
     **Option [number]:**
     - Agency Name: [exact value]
     - Address: [Shipping Address]
@@ -140,7 +152,7 @@ class ResponseGenerator:
     - Additional Notes: [Additional Note on Hours of Operations or 'None']
     - Wraparound Services: [Wraparound Service]
     - Note: Compare {user_services} with agency services. List missing as "Missing requested services: [services]"
-
+    
     Requirements:
     1. Maintain original agency ordering
     2. Use markdown bold for section headers
@@ -159,25 +171,25 @@ class ResponseGenerator:
             model=model_name,
             temperature=temperature
         )
-        self.tools = [self.format_sql_results_tool]
+        self.tools = []
+
+        # self.tools = [
+        #     Tool(
+        #         name="Result Formatter",
+        #         func=self.format_sql_results_tool,
+        #         description="Formats SQL results into structured data"
+        #     )
+        # ]
 
     def create_response_agent(self) -> AgentExecutor:
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                SystemMessage(content=self.RESPONSE_TEMPLATE),
-                ("human", "User preferences:\n{user_prefs}\n\nAgency data:\n{query_results}"),
-                MessagesPlaceholder("agent_scratchpad"),
-            ],
-            input_variables=[
-                "tool_names",
-                "language",
-                "query_results",
-                "user_services",
-                "user_prefs"
-            ]
-        )
+        prompt = ChatPromptTemplate.from_messages([
+            SystemMessage(content=self.RESPONSE_TEMPLATE),
+            ("human", "User preferences:\n{user_prefs}\n\nAgency data:\n{query_results}"),
+            MessagesPlaceholder("agent_scratchpad"),
+        ])
+
         return AgentExecutor(
-            agent=create_structured_chat_agent(
+            agent=create_tool_calling_agent(
                 self.llm,
                 tools=self.tools,
                 prompt=prompt
@@ -185,12 +197,16 @@ class ResponseGenerator:
             tools=self.tools,
             verbose=True
         )
-    
+
+
     def generate_final_response(self, query_results: List[Dict], user_prefs: Dict) -> str:
+        response_structure = self.RESPONSE_STRUCTURE
         try:
             response_agent = self.create_response_agent()
             return response_agent.invoke({
-                "tool_names": "format_sql_results_tool",  # Single tool
+                # "tool_names": "Result Formatter",
+                # "tools": self.tools,
+                "response_structure": response_structure,
                 "language": user_prefs.get("language", "English"),
                 "query_results": query_results,
                 "user_services": user_prefs.get("services", []),
@@ -245,6 +261,7 @@ class FoodAssistanceRAG:
         dietary_temperature: float = 0.0,
         response_temperature: float = 0.1
     ):
+        db_path = os.path.expanduser(db_path)
         self.engine = create_engine(f"sqlite:///{db_path}")
         self.filter_gen = DietaryFilterGenerator(
             openai_api_key=openai_api_key,
@@ -286,8 +303,13 @@ class FoodAssistanceRAG:
 
     def execute_query(self, query: str) -> List[Dict]:
         try:
+            # Remove any remaining markdown
+            clean_query = re.sub(r"```sql|```", "", query)
+            
             with self.engine.connect() as connection:
-                result = connection.execute(text(query))
+                if not connection.dialect.has_table(connection, "combined_data"):
+                    raise ValueError("combined_data table does not exist")
+                result = connection.execute(text(clean_query))
                 return [dict(row._mapping) for row in result]
         except Exception as e:
             logger.error(f"Query execution failed: {str(e)}")
