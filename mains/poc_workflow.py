@@ -49,7 +49,7 @@ def rag_search(user_prefs, distance_data, config):
         dietary_model="gpt-4o-mini",
         response_model="gpt-4o-mini"
     )
-    response = rag_system.process_request(prefs)
+    response = rag_system.process_request(INPUT_INFO)
     return response
 
 def main():
