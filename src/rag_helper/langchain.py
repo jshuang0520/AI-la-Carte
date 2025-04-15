@@ -54,6 +54,7 @@ class DietaryFilterGenerator:
     3. For each matched rule, create conditions with:
     - agency_type IN (comma-separated quoted values)
     - 'Cultural Populations Served' LIKE '%rule_culture%'
+    - If nothing is present, skip this where clause
     4. Combine conditions with AND between rules
     5. Generate only the conditions without WHERE keyword
 
