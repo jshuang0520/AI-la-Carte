@@ -44,7 +44,7 @@ def rag_search(user_prefs, distance_data, config):
     logger.info("Running inference...")
     INPUT_INFO = {"USER_PREFS": user_prefs, "Arcgis": distance_data}
     rag_system = lc.FoodAssistanceRAG(
-        openai_api_key="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",
+        openai_api_key="",  # TODO
         db_path="/Users/johnson.huang/py_ds/AI-la-Carte/data/cafb.db",
         dietary_model="gpt-4o-mini",
         response_model="gpt-4o-mini"

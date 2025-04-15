@@ -103,39 +103,44 @@ class DietaryFilterGenerator:
 class QueryBuilder:
     @staticmethod
     def build_query(arcgis_agencies: List[Dict], dietary_where: str) -> str:
-        # Validate agencies
-        if not arcgis_agencies:
-            raise ValueError("No agencies provided")
-            
-        # Sanitize inputs
+        # Extract and sanitize agency IDs and agency names from the ArcGIS dataset.
+        # Remove any single quotes from the data to avoid conflicts.
         agency_ids = [str(a.get("Agency ID", "")).replace("'", "") for a in arcgis_agencies]
         agency_names = [a.get("Agency Name", "").replace("'", "") for a in arcgis_agencies]
-        
-        # Build safe clauses
-        # id_clause = f"'Agency ID' IN ({','.join(f'\'{agency_ids}\'')})" if agency_ids else "1=0"
+
+        # Build a comma-separated string of agency IDs, each enclosed in single quotes.
         if agency_ids:
             id_str = ','.join(f"'{agency_id}'" for agency_id in agency_ids)
-            id_clause = f"'Agency ID' IN ({id_str})"    
+            # If your database column name is exactly "Agency ID" (with a space), wrap it in double quotes:
+            id_clause = f"\"Agency ID\" IN ({id_str})"
         else:
             id_clause = "1=0"
-            
+
+        # Similarly, build a clause for agency names.
         if agency_names:
-            names_str = ','.join(f"'{name}'" for name in agency_names)
-            name_clause = f"'Agency Name' IN ({names_str})"
-        
+            name_str = ','.join(f"'{name}'" for name in agency_names)
+            name_clause = f"\"Agency Name\" IN ({name_str})"
         else:
             name_clause = "1=0"
-        
-        # Clean dietary clause
-        safe_dietary = re.sub(r"[^a-zA-Z0-9%_=()' ,/-]", "", dietary_where) if dietary_where else ""
-        dietary_clause = f"AND ({safe_dietary})" if safe_dietary else ""
-        
-        return f"""
-        SELECT *
-        FROM combined_data
-        WHERE ({id_clause} OR {name_clause})
-        {dietary_clause}
-        LIMIT 50"""
+
+        # Sanitize dietary_where clause, removing dangerous characters.
+        sanitized_where = re.sub(
+            r"[;'\"]|(--)|(/\*[\w\W]*?\*/)",
+            "",
+            dietary_where,
+            flags=re.IGNORECASE
+        ) if dietary_where else ""
+
+        base_query = f"""
+SELECT * 
+FROM combined_data
+WHERE (
+    {id_clause} 
+    OR {name_clause}
+)"""
+        if sanitized_where:
+            base_query += f" AND ({sanitized_where})"
+        return base_query + " LIMIT 50"
 
 
 class ResponseGenerator:
