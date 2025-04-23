@@ -117,8 +117,10 @@ def load_config():
 
 
 def get_user_preferences(responses):
-
-    pass
+    for key in responses:
+        if isinstance(responses[key], dict):
+            responses[key] = [k for k, v in responses[key].items() if v]
+    return responses
 
 # Load configuration
 config = load_config()
@@ -203,12 +205,14 @@ for key in user_pref_cfg['order']['order']:
 
 # 3) Submit
 if st.button("Submit", key='submit_button'):
-    st.write("## Collected Preferences")
-    st.json(responses)
+    # st.write("## Collected Preferences")
+    # st.json(responses)
     try:
         # preparation
         # workflow
         user_prefs = get_user_preferences(responses)
+        # st.write("## User Preferences")
+        # st.json(user_prefs)
         distance_data = filter_by_distance(
             user_prefs, 
             config=config,
