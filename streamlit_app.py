@@ -42,9 +42,10 @@ def rag_search(user_prefs, distance_data, config):
     logger.info("Performing RAG search/comparison with user preferences...")
     logger.info("Running inference...")
     INPUT_INFO = {"USER_PREFS": user_prefs, "Arcgis": distance_data}
+    db_path = os.path.abspath("data/cafb.db")
     rag_system = lc.FoodAssistanceRAG(
         openai_api_key=config["llm_config"]["LangChainRAGHelper"]["openai_api_key"], 
-        db_path="data/cafb.db",
+        db_path=db_path,
         dietary_model=config["llm_config"]["LangChainRAGHelper"]["model_name"],
         response_model=config["llm_config"]["LangChainRAGHelper"]["model_name"]
     )
