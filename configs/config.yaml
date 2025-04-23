@@ -74,77 +74,190 @@ user_preferences:
     proxy_pickup: proxy_pickup
     max_distance: max_distance
   questions:
-    language: "Which language would you prefer to use? (en/es): "
-    address: "Please share your address or location: "
-    pickup_day: "Would you like to get food today or another day this week? (today/tomorrow/this_week): "
-    pickup_time: "Please select your preferred pickup time from the available slots:"
-    transportation: "Are you able to travel to a food pantry using a private vehicle or public transit? (yes/no): "
-    health_dietary_restrictions: "Do you have any dietary restrictions or diet-related illness? (e.g., Diabetic Meal, Low Sodium/Hypertension Meal, etc.): "
-    religious_dietary_restrictions: "Do you have any dietary restrictions due to religious or cultural reasons? (e.g., Halal Meal, Kosher Meal, Vegetarian Meal, etc.): "
-    kitchen_access: "Do you have access to a kitchen to store and/or cook food? (Yes, so I can take raw food or tins / No, so I need Prepared meals): "
-    services: "Do you also need any of these other services? (Select all that apply): "
-    proxy_pickup: "Can a relative or friend travel to a pantry for you? (yes/no): "
-    max_distance: "What is the maximum distance you can travel to get food? (in miles): "
-  valid_options:
-    language: ["en", "es"]  # ["en", "es", "zh", "ar", "vi", "am"]
-    pickup_day: ["today", "tomorrow", "this_week"]
-    transportation: ["yes", "no"]
+    language:
+      en: "Which language would you prefer to use? (en/es): "
+      es: "¿Qué idioma preferirías usar? (en/es): "
+    address:
+      en: "Please share your address or location: "
+      es: "Por favor comparte tu dirección o ubicación: "
+    pickup_day:
+      en: "Would you like to get food today or another day this week? (today/tomorrow/this_week): "
+      es: "¿Te gustaría recibir comida hoy u otro día de esta semana? (hoy/mañana/esta_semana): "
+    pickup_time:
+      en: "Please select your preferred pickup time from the available slots:"
+      es: "Por favor selecciona tu horario de recogida preferido de las opciones disponibles:"
+    transportation:
+      en: "Are you able to travel to a food pantry using a private vehicle or public transit? (yes/no): "
+      es: "¿Puedes desplazarte a una despensa con vehículo propio o transporte público? (sí/no): "
     health_dietary_restrictions:
-      - "None"
-      - "Diabetic Meal"
-      - "Low Sodium / Hypertension Meal"
-      - "Low Sugar Meal"
-      - "Low Fat / Cardiac Meal"
-      - "Renal/Kidney-Friendly Meal"
-      - "Gluten-Free/Intolerant Meal"
-      - "All-Produce/Fruit & Vegetable Meal"
-      - "Dietary/Pathological Meal"
-      - 
-        option: "Allergic to"
-        follow_up:
-          - "Please specify what food you are allergic to: "
-      - 
-        option: "Other"
-        follow_up:
-          - "Please specify what is your health dietary: "
-
+      en: "Do you have any dietary restrictions or diet-related illness? (e.g., Diabetic Meal, Low Sodium/Hypertension Meal, etc.): "
+      es: "¿Tienes alguna restricción dietética o enfermedad relacionada con la dieta? (p.ej., Comida para diabéticos, Baja en sodio/hipertensión, etc.): "
     religious_dietary_restrictions:
-      - "None"
-      - "Halal Meal"
-      - "Kosher Meal"
-      - "Hindu Meal"
-      - "Non-Beef Meal"
-      - "Non-Pork Meal"
-      - "Vegetarian Meal"
-      - "Vegetarian Lacto-Ovo Meal"
-      - "Vegetarian Vegan Meal"
-      - "Raw Vegetarian Meal"
-      - "Vegetarian Indian Meal"
-      - "Vegetarian Oriental Meal"
-      - "Vegetarian Jain Meal"
-      - 
-        option: "Other"
-        follow_up:
-          - "Please specify what is your religious dietary: "
+      en: "Do you have any dietary restrictions due to religious or cultural reasons? (e.g., Halal Meal, Kosher Meal, Vegetarian Meal, etc.): "
+      es: "¿Tienes alguna restricción dietética por motivos religiosos o culturales? (p.ej., Comida Halal, Kosher, Vegetariana, etc.): "
     kitchen_access:
-      - "Yes, so I can take raw food or tins"
-      - "No, so I need Prepared meals"
+      en: "Do you have access to a kitchen to store and/or cook food? (Yes, so I can take raw food or tins / No, so I need Prepared meals): "
+      es: "¿Tienes acceso a una cocina para almacenar y/o cocinar alimentos? (Sí, puedo llevar comida cruda o enlatada / No, necesito comidas preparadas): "
     services:
-      - "None"
-      - "Housing"
-      - "Government benefits"
-      - "Financial assistance"
-      - "Services for older adults"
-      - "Behavioral health"
-      - "Health care"
-      - "Child care"
-      - "English language classes"
-      - "Job training"
-    proxy_pickup: ["yes", "no"]
-    max_distance: null
+      en: "Do you also need any of these other services? (Select all that apply): "
+      es: "¿También necesitas alguno de estos otros servicios? (Selecciona todos los que apliquen): "
+    proxy_pickup:
+      en: "Can a relative or friend travel to a pantry for you? (yes/no): "
+      es: "¿Puede un familiar o amigo ir a la despensa por ti? (sí/no): "
+    max_distance:
+      en: "What is the maximum distance you can travel to get food? (in miles): "
+      es: "¿Cuál es la distancia máxima que puedes recorrer para conseguir comida? (en millas): "
+  valid_options:
+    language:
+      en: ["en", "es"]
+      es: ["en", "es"]
+    pickup_day:
+      en: ["today", "tomorrow", "this_week"]
+      es: ["hoy", "mañana", "esta_semana"]
+    transportation:
+      en: ["yes", "no"]
+      es: ["sí", "no"]
+    health_dietary_restrictions:
+      en:
+        - "None"
+        - "Diabetic Meal"
+        - "Low Sodium / Hypertension Meal"
+        - "Low Sugar Meal"
+        - "Low Fat / Cardiac Meal"
+        - "Renal/Kidney-Friendly Meal"
+        - "Gluten-Free/Intolerant Meal"
+        - "All-Produce/Fruit & Vegetable Meal"
+        - "Dietary/Pathological Meal"
+        - option: "Allergic to"
+          follow_up:
+            - "Please specify what food you are allergic to: "
+        - option: "Other"
+          follow_up:
+            - "Please specify your health dietary restriction: "
+      es:
+        - "Ninguna"
+        - "Comida para diabéticos"
+        - "Baja en sodio / Hipertensión"
+        - "Baja en azúcar"
+        - "Baja en grasas / Cardíaca"
+        - "Para riñón / Renal"
+        - "Sin gluten"
+        - "Solo frutas y verduras"
+        - "Alimentos patológicos"
+        - option: "Alérgico a"
+          follow_up:
+            - "Por favor especifica a qué alimento eres alérgico: "
+        - option: "Otro"
+          follow_up:
+            - "Por favor especifica tu restricción dietética de salud: "
+    religious_dietary_restrictions:
+      en:
+        - "None"
+        - "Halal Meal"
+        - "Kosher Meal"
+        - "Hindu Meal"
+        - "Non-Beef Meal"
+        - "Non-Pork Meal"
+        - "Vegetarian Meal"
+        - "Vegetarian Lacto-Ovo Meal"
+        - "Vegetarian Vegan Meal"
+        - "Raw Vegetarian Meal"
+        - "Vegetarian Indian Meal"
+        - "Vegetarian Oriental Meal"
+        - "Vegetarian Jain Meal"
+        - option: "Other"
+          follow_up:
+            - "Please specify your religious dietary restriction: "
+      es:
+        - "Ninguna"
+        - "Comida Halal"
+        - "Comida Kosher"
+        - "Comida Hindú"
+        - "Sin carne de res"
+        - "Sin cerdo"
+        - "Vegetariano"
+        - "Vegetariano lacto-ovo"
+        - "Vegano"
+        - "Vegetariano crudo"
+        - "Vegetariano indio"
+        - "Vegetariano oriental"
+        - "Vegetariano jainista"
+        - option: "Otro"
+          follow_up:
+            - "Por favor especifica tu restricción dietética religiosa: "
+    kitchen_access:
+      en:
+        - "Yes, so I can take raw food or tins"
+        - "No, so I need Prepared meals"
+      es:
+        - "Sí, puedo llevar comida cruda o enlatada"
+        - "No, necesito comidas preparadas"
+    services:
+      en:
+        - "None"
+        - "Housing"
+        - "Government benefits"
+        - "Financial assistance"
+        - "Services for older adults"
+        - "Behavioral health"
+        - "Health care"
+        - "Child care"
+        - "English language classes"
+        - "Job training"
+      es:
+        - "Ninguno"
+        - "Vivienda"
+        - "Beneficios gubernamentales"
+        - "Asistencia financiera"
+        - "Servicios para adultos mayores"
+        - "Salud mental"
+        - "Atención médica"
+        - "Cuidado infantil"
+        - "Clases de inglés"
+        - "Capacitación laboral"
+    proxy_pickup:
+      en: ["yes", "no"]
+      es: ["sí", "no"]
+    max_distance:
+      en: null
+      es: null
+    proxy_pickup:
+      en: ["yes", "no"]
+      es: ["sí", "no"]
+    max_distance:
+      en: null
+      es: null
+
+  # Keys that accept only single choice
+  single_choice_keys:
+    - language
+    - pickup_day
+    - pickup_time
+    - transportation
+    - kitchen_access
+    - proxy_pickup
+    - max_distance
+
+  # Prompt and error messages
+  prompt_texts:
+    enter_choice:
+      en:
+        single: "Enter your choice number (single choice only): "
+        multiple: "Enter your choice number (or comma separated for multiple): "
+      es:
+        single: "Ingresa el número de tu elección (solo una opción): "
+        multiple: "Ingresa el número de tu elección (o separados por comas para múltiples): "
+  error_messages:
+    invalid_selection:
+      en: "Invalid selection. Please try again."
+      es: "Selección inválida. Intenta nuevamente."
+    single_only:
+      en: "Please select only one option for this question."
+      es: "Por favor selecciona solo una opción para esta pregunta."
+
   defaults:
     language: "en"
-    address: "5702 Vassar Drive, College Park, Maryland, 20740"
+    address: null
     pickup_day: null
     pickup_time: null
     transportation: null
@@ -153,7 +266,7 @@ user_preferences:
     kitchen_access: null
     services: null
     proxy_pickup: null
-    max_distance: 6
+    max_distance: 10
 
 # -------------------------------
 # llm config
