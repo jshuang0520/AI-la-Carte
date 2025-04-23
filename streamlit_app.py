@@ -45,8 +45,8 @@ def rag_search(user_prefs, distance_data, config):
     rag_system = lc.FoodAssistanceRAG(
         openai_api_key=config["llm_config"]["LangChainRAGHelper"]["openai_api_key"], 
         db_path="data/cafb.db",
-        dietary_model="gpt-4o-mini",
-        response_model="gpt-4o-mini"
+        dietary_model=config["llm_config"]["LangChainRAGHelper"]["model_name"],
+        response_model=config["llm_config"]["LangChainRAGHelper"]["model_name"]
     )
     response = rag_system.process_request(INPUT_INFO)
     return response
@@ -119,7 +119,7 @@ def load_config():
 def get_user_preferences(responses):
     for key in responses:
         if isinstance(responses[key], dict):
-            responses[key] = [k for k, v in responses[key].items() if v]
+            responses[key] = [k for k, v in responses[key].items() if v and k != "None"]
     return responses
 
 # Load configuration
@@ -131,7 +131,7 @@ time_cfg = config['time']
 
 
 # Streamlit App
-st.title("AI‑la‑Carte: Food Assistance Preferences (Streamlit)")
+st.title("AI‑la‑Carte: Food Assistance")
 
 # 1) Language selection
 lang = st.radio(
@@ -143,6 +143,7 @@ lang = st.radio(
 responses = {'language': lang}
 
 # 2) Iterate questions
+all_filled = True
 for key in user_pref_cfg['order']['order']:
     if key == 'language':
         continue
@@ -172,17 +173,21 @@ for key in user_pref_cfg['order']['order']:
         else:
             non_dict_options = [opt for opt in opts if not isinstance(opt, dict)]
             dict_options = [opt for opt in opts if isinstance(opt, dict)]
+            any_checked = False
             for opt in non_dict_options:
                 val = st.checkbox(
                     label=opt,
                     key=f"{key}_{opt}_select"
                     )
                 key_data[opt] = val     # Save true or false for each option
+                if val:
+                    any_checked = True
             for opt in dict_options:
                 val = st.checkbox(
                     label=opt["option"],
                     key=f"{key}_{opt['option']}_checkbox"
                 )
+                if val: any_checked = True
                 key_data[opt['option']] = val   # Save true or false for each option
                 if val:
                     # Handle dict options with follow-ups
@@ -192,24 +197,46 @@ for key in user_pref_cfg['order']['order']:
                             prompt,
                             key=f"{key}_{opt['option']}_followup"
                         )
+                        if ans == "":
+                            all_filled = False
+                            st.warning("This field is required.")
                         # Save response with follow-up
                         responses.setdefault('follow_ups', {}).setdefault(key, {})[opt['option']] = ans
+            if not any_checked:
+                all_filled = False
+                st.warning("Please select at least one option.")
+    
     else:
         val = st.text_input(
             label="",
             key=f"{key}_text"
         )
+        
+        if key == 'max_distance':
+            try:
+                val = float(val)
+                if val <= 0:
+                    all_filled = False
+                    st.warning("Distance must be a positive number.")
+            except ValueError:
+                all_filled = False
+                st.warning("Please enter a valid number for distance.")
+        elif val == "":
+            all_filled = False
+            st.warning("This field is required.")
         key_data = val
 
     responses[key] = key_data
 
 # 3) Submit
 if st.button("Submit", key='submit_button'):
+    if not all_filled:
+        st.warning("Please fill in all required fields.")
+        st.stop()
     # st.write("## Collected Preferences")
     # st.json(responses)
     with st.spinner("Processing..."):
         try:
-            # preparation
             # workflow
             user_prefs = get_user_preferences(responses)
             # st.write("## User Preferences")
