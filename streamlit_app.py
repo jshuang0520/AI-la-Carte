@@ -207,23 +207,24 @@ for key in user_pref_cfg['order']['order']:
 if st.button("Submit", key='submit_button'):
     # st.write("## Collected Preferences")
     # st.json(responses)
-    try:
-        # preparation
-        # workflow
-        user_prefs = get_user_preferences(responses)
-        # st.write("## User Preferences")
-        # st.json(user_prefs)
-        distance_data = filter_by_distance(
-            user_prefs, 
-            config=config,
-            limit=100,
-        )
-        results = rag_search(user_prefs, distance_data, config=config)
-        logger.info("Final Results: %s", results)
-    except Exception as e:
-        logger.error(f"Workflow error: {str(e)}")
-        raise
-    st.write(results)
+    with st.spinner("Processing..."):
+        try:
+            # preparation
+            # workflow
+            user_prefs = get_user_preferences(responses)
+            # st.write("## User Preferences")
+            # st.json(user_prefs)
+            distance_data = filter_by_distance(
+                user_prefs, 
+                config=config,
+                limit=100,
+            )
+            results = rag_search(user_prefs, distance_data, config=config)
+            logger.info("Final Results: %s", results)
+        except Exception as e:
+            logger.error(f"Workflow error: {str(e)}")
+            raise
+        st.write(results)
     # Here you could call your main workflow, e.g.:  
     # from mains.poc_workflow import run_workflow  
     # results = run_workflow(responses)  
