@@ -15,4 +15,4 @@ chromadb
 tiktoken
 python-dotenv
 arcgis==2.4.0
-fuzzywuzzy
+streamlit
